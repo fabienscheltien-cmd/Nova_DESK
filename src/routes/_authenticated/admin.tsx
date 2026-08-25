@@ -197,7 +197,9 @@ function CatalogueAdmin() {
       toast.error(parsed.error.issues[0]?.message ?? "Champs invalides");
       return;
     }
-    const { error } = await supabase.from("services").insert(parsed.data);
+    const { error } = await supabase
+      .from("services")
+      .insert({ ...parsed.data, description: parsed.data.description ?? null });
     if (error) {
       toast.error("Ajout impossible.");
       return;

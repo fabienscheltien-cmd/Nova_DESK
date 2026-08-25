@@ -171,7 +171,7 @@ function BookingPage() {
         )}
 
         {catalogue.data && (
-          <Tabs defaultValue={catalogue.data.categories[0]?.slug} className="mt-6">
+          <Tabs defaultValue={catalogue.data.categories[0]?.slug ?? ""} className="mt-6">
             <TabsList className="flex h-auto flex-wrap justify-start gap-1">
               {catalogue.data.categories.map((c) => (
                 <TabsTrigger key={c.id} value={c.slug}>
