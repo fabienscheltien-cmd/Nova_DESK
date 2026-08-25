@@ -5,7 +5,6 @@ import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { AccessGate } from "@/components/AccessGate";
 import { AppHeader } from "@/components/AppHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { formatLeadTime, formatPrice, STATUS_LABELS } from "@/lib/format";
 
-export const Route = createFileRoute("/_authenticated/admin")({
+export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: "Administration – Conciergerie" },
@@ -45,9 +44,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: () => (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader />
-      <AccessGate adminOnly>
-        <AdminPage />
-      </AccessGate>
+              <AdminPage />
     </div>
   ),
 });
