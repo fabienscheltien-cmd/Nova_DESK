@@ -13,7 +13,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Réservez pressing, cordonnerie, retouches et gestion de colis sur votre lieu de travail. Tarifs et délais affichés, accès réservé aux collaborateurs.",
+          "Réservez pressing, cordonnerie, retouches et gestion de colis sur votre lieu de travail. Tarifs et délais affichés, réservation immédiate sans création de compte.",
       },
       { property: "og:title", content: "Conciergerie d'entreprise – réservation en ligne" },
       {
@@ -41,8 +41,8 @@ const HIGHLIGHTS = [
   },
   {
     icon: ShieldCheck,
-    title: "Accès collaborateurs",
-    text: "Réservé aux adresses e-mail des domaines autorisés par votre entreprise.",
+    title: "Accès direct",
+    text: "Aucun compte à créer : réservez immédiatement depuis le catalogue.",
   },
 ];
 
@@ -74,10 +74,10 @@ function Index() {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg">
-                <Link to="/auth">Réserver une prestation</Link>
+                <Link to="/reserver">Réserver une prestation</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link to="/reservations">Suivre mes dépôts</Link>
+                <Link to="/reservations">Suivre les dépôts</Link>
               </Button>
             </div>
           </div>
@@ -100,7 +100,7 @@ function Index() {
 
       <footer className="border-t border-border/70 py-8">
         <p className="mx-auto max-w-6xl px-4 text-xs text-muted-foreground">
-          Accès réservé aux collaborateurs disposant d'une adresse e-mail autorisée.
+          Accès libre : réservation et suivi disponibles sans identification.
         </p>
       </footer>
     </div>

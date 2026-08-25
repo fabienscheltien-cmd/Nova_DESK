@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { AccessGate } from "@/components/AccessGate";
 import { AppHeader } from "@/components/AppHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,10 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice, STATUS_LABELS } from "@/lib/format";
 
-export const Route = createFileRoute("/_authenticated/reservations")({
+export const Route = createFileRoute("/reservations")({
   head: () => ({
     meta: [
-      { title: "Mes réservations – Conciergerie" },
+      { title: "Réservations – Conciergerie" },
       {
         name: "description",
         content:
@@ -31,9 +30,7 @@ export const Route = createFileRoute("/_authenticated/reservations")({
   component: () => (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader />
-      <AccessGate>
-        <MyBookings />
-      </AccessGate>
+              <MyBookings />
     </div>
   ),
 });
@@ -65,7 +62,7 @@ function MyBookings() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">Mes réservations</h1>
+      <h1 className="text-2xl font-semibold">Réservations</h1>
 
       {bookings.isLoading && <p className="mt-6 text-sm text-muted-foreground">Chargement…</p>}
 

@@ -5,7 +5,6 @@ import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { AccessGate } from "@/components/AccessGate";
 import { AppHeader } from "@/components/AppHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,10 +21,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { formatLeadTime, formatPrice, SLOTS } from "@/lib/format";
 
-export const Route = createFileRoute("/_authenticated/reserver")({
+export const Route = createFileRoute("/reserver")({
   head: () => ({
     meta: [
       { title: "Réserver une prestation – Conciergerie" },
@@ -46,9 +44,7 @@ export const Route = createFileRoute("/_authenticated/reserver")({
   component: () => (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader />
-      <AccessGate>
-        <BookingPage />
-      </AccessGate>
+              <BookingPage />
     </div>
   ),
 });
@@ -61,7 +57,6 @@ const detailsSchema = z.object({
 });
 
 function BookingPage() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [cart, setCart] = useState<Record<string, number>>({});
   const [date, setDate] = useState("");
@@ -101,7 +96,6 @@ function BookingPage() {
     setCart((prev) => ({ ...prev, [id]: Math.max(0, (prev[id] ?? 0) + delta) }));
 
   const submit = async () => {
-    if (!user) return;
     if (lines.length === 0) {
       toast.error("Ajoutez au moins une prestation.");
       return;
@@ -121,7 +115,6 @@ function BookingPage() {
     const { data: booking, error } = await supabase
       .from("bookings")
       .insert({
-        user_id: user.id,
         dropoff_date: parsed.data.dropoff_date,
         dropoff_slot: parsed.data.dropoff_slot,
         location: parsed.data.location || null,
