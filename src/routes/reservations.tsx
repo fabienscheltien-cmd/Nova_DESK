@@ -12,7 +12,7 @@ import { formatPrice, STATUS_LABELS } from "@/lib/format";
 export const Route = createFileRoute("/reservations")({
   head: () => ({
     meta: [
-      { title: "Mes réservations – Conciergerie" },
+      { title: "Réservations – Conciergerie" },
       {
         name: "description",
         content:
@@ -62,7 +62,7 @@ function MyBookings() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">Mes réservations</h1>
+      <h1 className="text-2xl font-semibold">Réservations</h1>
 
       {bookings.isLoading && <p className="mt-6 text-sm text-muted-foreground">Chargement…</p>}
 
