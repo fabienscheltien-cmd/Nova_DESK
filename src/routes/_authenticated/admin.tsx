@@ -1,0 +1,455 @@
+import { useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { AccessGate } from "@/components/AccessGate";
+import { AppHeader } from "@/components/AppHeader";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { formatLeadTime, formatPrice, STATUS_LABELS } from "@/lib/format";
+
+export const Route = createFileRoute("/_authenticated/admin")({
+  head: () => ({
+    meta: [
+      { title: "Administration – Conciergerie" },
+      {
+        name: "description",
+        content:
+          "Gérez le catalogue de prestations, les domaines e-mail autorisés et le suivi des réservations de la conciergerie.",
+      },
+      { property: "og:title", content: "Administration – Conciergerie" },
+      {
+        property: "og:description",
+        content: "Catalogue, domaines autorisés et suivi des réservations.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: () => (
+    <div className="min-h-screen bg-background text-foreground">
+      <AppHeader />
+      <AccessGate adminOnly>
+        <AdminPage />
+      </AccessGate>
+    </div>
+  ),
+});
+
+const STATUSES = Object.keys(STATUS_LABELS);
+
+function AdminPage() {
+  return (
+    <main className="mx-auto max-w-5xl px-4 py-10">
+      <h1 className="text-2xl font-semibold">Administration</h1>
+      <Tabs defaultValue="bookings" className="mt-6">
+        <TabsList>
+          <TabsTrigger value="bookings">Réservations</TabsTrigger>
+          <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
+          <TabsTrigger value="domains">Domaines autorisés</TabsTrigger>
+        </TabsList>
+        <TabsContent value="bookings" className="mt-5">
+          <BookingsAdmin />
+        </TabsContent>
+        <TabsContent value="catalogue" className="mt-5">
+          <CatalogueAdmin />
+        </TabsContent>
+        <TabsContent value="domains" className="mt-5">
+          <DomainsAdmin />
+        </TabsContent>
+      </Tabs>
+    </main>
+  );
+}
+
+function BookingsAdmin() {
+  const queryClient = useQueryClient();
+  const bookings = useQuery({
+    queryKey: ["admin-bookings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("*, booking_items(*)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const setStatus = async (id: string, status: string) => {
+    const { error } = await supabase
+      .from("bookings")
+      .update({ status: status as never })
+      .eq("id", id);
+    if (error) {
+      toast.error("Mise à jour impossible.");
+      return;
+    }
+    void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+  };
+
+  return (
+    <div className="space-y-4">
+      {bookings.data?.length === 0 && (
+        <p className="text-sm text-muted-foreground">Aucune réservation.</p>
+      )}
+      {bookings.data?.map((b) => (
+        <Card key={b.id} className="panel border-border/70">
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Dépôt {b.reference}</CardTitle>
+              <CardDescription>
+                {new Date(b.dropoff_date).toLocaleDateString("fr-FR")} · {b.dropoff_slot}
+                {b.location ? ` · ${b.location}` : ""}
+              </CardDescription>
+            </div>
+            <Select value={b.status} onValueChange={(v) => setStatus(b.id, v)}>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {STATUS_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <ul className="space-y-1">
+              {b.booking_items.map((i) => (
+                <li key={i.id} className="flex justify-between gap-3">
+                  <span>
+                    {i.quantity} × {i.service_name}
+                  </span>
+                  <span className="tabular-nums">
+                    {formatPrice(i.unit_price_cents * i.quantity)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {b.notes && <p className="text-muted-foreground">Note : {b.notes}</p>}
+            <p className="font-semibold tabular-nums">{formatPrice(b.total_cents)}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+const serviceSchema = z.object({
+  category_id: z.string().uuid("Choisissez une catégorie"),
+  name: z.string().trim().min(2, "Nom trop court").max(80),
+  description: z.string().trim().max(200).optional(),
+  price_cents: z.number().int().min(0).max(1_000_000),
+  lead_time_hours: z.number().int().min(1).max(2000),
+});
+
+function CatalogueAdmin() {
+  const queryClient = useQueryClient();
+  const [categoryId, setCategoryId] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
+  const [lead, setLead] = useState("48");
+
+  const data = useQuery({
+    queryKey: ["admin-catalogue"],
+    queryFn: async () => {
+      const [cats, svcs] = await Promise.all([
+        supabase.from("service_categories").select("*").order("sort_order"),
+        supabase.from("services").select("*").order("sort_order"),
+      ]);
+      if (cats.error) throw cats.error;
+      if (svcs.error) throw svcs.error;
+      return { categories: cats.data, services: svcs.data };
+    },
+  });
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin-catalogue"] });
+
+  const addService = async () => {
+    const parsed = serviceSchema.safeParse({
+      category_id: categoryId,
+      name,
+      description,
+      price_cents: Math.round(Number(price.replace(",", ".")) * 100),
+      lead_time_hours: Number(lead),
+    });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Champs invalides");
+      return;
+    }
+    const { error } = await supabase
+      .from("services")
+      .insert({ ...parsed.data, description: parsed.data.description ?? null });
+    if (error) {
+      toast.error("Ajout impossible.");
+      return;
+    }
+    setName("");
+    setDescription("");
+    setPrice("");
+    toast.success("Prestation ajoutée.");
+    void refresh();
+  };
+
+  const toggle = async (id: string, active: boolean) => {
+    await supabase.from("services").update({ active }).eq("id", id);
+    void refresh();
+  };
+
+  const remove = async (id: string) => {
+    const { error } = await supabase.from("services").delete().eq("id", id);
+    if (error) {
+      toast.error("Suppression impossible (prestation déjà réservée). Désactivez-la plutôt.");
+      return;
+    }
+    void refresh();
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="panel border-border/70">
+        <CardHeader>
+          <CardTitle className="text-base">Ajouter une prestation</CardTitle>
+          <CardDescription>Prix en euros, délai en heures.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Catégorie</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choisir" />
+              </SelectTrigger>
+              <SelectContent>
+                {data.data?.categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="svc-name">Nom</Label>
+            <Input
+              id="svc-name"
+              value={name}
+              maxLength={80}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="svc-desc">Description</Label>
+            <Input
+              id="svc-desc"
+              value={description}
+              maxLength={200}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="svc-price">Prix (€)</Label>
+            <Input
+              id="svc-price"
+              inputMode="decimal"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="5,50"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="svc-lead">Délai (heures)</Label>
+            <Input
+              id="svc-lead"
+              inputMode="numeric"
+              value={lead}
+              onChange={(e) => setLead(e.target.value)}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Button onClick={addService}>Ajouter</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-3">
+        {data.data?.categories.map((c) => (
+          <Card key={c.id} className="panel border-border/70">
+            <CardHeader>
+              <CardTitle className="text-base">{c.name}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {data.data?.services
+                .filter((s) => s.category_id === c.id)
+                .map((s) => (
+                  <div key={s.id} className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{s.name}</p>
+                      <p className="text-muted-foreground">
+                        {formatPrice(s.price_cents)} · délai {formatLeadTime(s.lead_time_hours)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Switch
+                        checked={s.active}
+                        onCheckedChange={(v) => toggle(s.id, v)}
+                        aria-label={`Activer ${s.name}`}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Supprimer ${s.name}`}
+                        onClick={() => remove(s.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const domainSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(120)
+  .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/, "Domaine invalide (ex. entreprise.com)");
+
+function DomainsAdmin() {
+  const queryClient = useQueryClient();
+  const [domain, setDomain] = useState("");
+  const [label, setLabel] = useState("");
+
+  const domains = useQuery({
+    queryKey: ["admin-domains"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("allowed_domains")
+        .select("*")
+        .order("domain");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin-domains"] });
+
+  const add = async () => {
+    const parsed = domainSchema.safeParse(domain);
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Domaine invalide");
+      return;
+    }
+    const { error } = await supabase
+      .from("allowed_domains")
+      .insert({ domain: parsed.data, label: label.trim() || null });
+    if (error) {
+      toast.error("Ce domaine existe déjà ou n'a pas pu être ajouté.");
+      return;
+    }
+    setDomain("");
+    setLabel("");
+    toast.success("Domaine autorisé.");
+    void refresh();
+  };
+
+  const toggle = async (id: string, active: boolean) => {
+    await supabase.from("allowed_domains").update({ active }).eq("id", id);
+    void refresh();
+  };
+
+  const remove = async (id: string) => {
+    await supabase.from("allowed_domains").delete().eq("id", id);
+    void refresh();
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="panel border-border/70">
+        <CardHeader>
+          <CardTitle className="text-base">Autoriser un domaine e-mail</CardTitle>
+          <CardDescription>
+            Toute personne dont l'adresse se termine par ce domaine pourra réserver.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="dom">Domaine</Label>
+            <Input
+              id="dom"
+              value={domain}
+              placeholder="entreprise.com"
+              onChange={(e) => setDomain(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="dom-label">Libellé</Label>
+            <Input
+              id="dom-label"
+              value={label}
+              maxLength={80}
+              placeholder="Siège Paris"
+              onChange={(e) => setLabel(e.target.value)}
+            />
+          </div>
+          <div className="flex items-end">
+            <Button onClick={add}>Ajouter</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="panel border-border/70">
+        <CardContent className="space-y-3 py-5 text-sm">
+          {domains.data?.map((d) => (
+            <div key={d.id} className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="font-medium">@{d.domain}</span>
+                {d.label && <Badge variant="outline">{d.label}</Badge>}
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={d.active}
+                  onCheckedChange={(v) => toggle(d.id, v)}
+                  aria-label={`Activer ${d.domain}`}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Supprimer ${d.domain}`}
+                  onClick={() => remove(d.id)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
