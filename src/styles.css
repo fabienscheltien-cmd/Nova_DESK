@@ -63,52 +63,53 @@
 
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.2 0.035 248);
-  --foreground: oklch(0.96 0.008 230);
-  --card: oklch(0.25 0.04 248);
-  --card-foreground: oklch(0.96 0.008 230);
-  --popover: oklch(0.24 0.04 248);
-  --popover-foreground: oklch(0.96 0.008 230);
-  --primary: oklch(0.75 0.093 208);
-  --primary-foreground: oklch(0.19 0.035 248);
-  --secondary: oklch(0.33 0.055 248);
-  --secondary-foreground: oklch(0.96 0.008 230);
-  --muted: oklch(0.29 0.042 248);
-  --muted-foreground: oklch(0.74 0.022 230);
-  --accent: oklch(0.36 0.06 248);
-  --accent-foreground: oklch(0.96 0.008 230);
+  /* Palette alignée sur le logo Nova Serenity : bleu profond #1B4F8A / bleu clair #2E7CBF */
+  --background: oklch(0.19 0.038 255);
+  --foreground: oklch(0.97 0.008 248);
+  --card: oklch(0.235 0.045 255);
+  --card-foreground: oklch(0.97 0.008 248);
+  --popover: oklch(0.225 0.045 255);
+  --popover-foreground: oklch(0.97 0.008 248);
+  --primary: oklch(0.6 0.125 251);
+  --primary-foreground: oklch(0.98 0.006 248);
+  --secondary: oklch(0.31 0.055 255);
+  --secondary-foreground: oklch(0.97 0.008 248);
+  --muted: oklch(0.27 0.045 255);
+  --muted-foreground: oklch(0.75 0.025 248);
+  --accent: oklch(0.35 0.07 253);
+  --accent-foreground: oklch(0.97 0.008 248);
   --destructive: oklch(0.62 0.2 25);
-  --destructive-foreground: oklch(0.98 0.005 230);
-  --border: oklch(0.36 0.045 248);
-  --input: oklch(0.34 0.045 248);
-  --ring: oklch(0.75 0.093 208);
-  --chart-1: oklch(0.75 0.093 208);
-  --chart-2: oklch(0.6 0.1 248);
-  --chart-3: oklch(0.7 0.12 165);
-  --chart-4: oklch(0.8 0.13 85);
-  --chart-5: oklch(0.65 0.15 20);
-  --sidebar: oklch(0.23 0.04 248);
-  --sidebar-foreground: oklch(0.96 0.008 230);
-  --sidebar-primary: oklch(0.75 0.093 208);
-  --sidebar-primary-foreground: oklch(0.19 0.035 248);
-  --sidebar-accent: oklch(0.33 0.055 248);
-  --sidebar-accent-foreground: oklch(0.96 0.008 230);
-  --sidebar-border: oklch(0.36 0.045 248);
-  --sidebar-ring: oklch(0.75 0.093 208);
+  --destructive-foreground: oklch(0.98 0.005 248);
+  --border: oklch(0.34 0.05 255);
+  --input: oklch(0.32 0.05 255);
+  --ring: oklch(0.66 0.125 251);
+  --chart-1: oklch(0.6 0.125 251);
+  --chart-2: oklch(0.72 0.1 245);
+  --chart-3: oklch(0.5 0.11 258);
+  --chart-4: oklch(0.8 0.09 235);
+  --chart-5: oklch(0.66 0.09 268);
+  --sidebar: oklch(0.22 0.045 255);
+  --sidebar-foreground: oklch(0.97 0.008 248);
+  --sidebar-primary: oklch(0.6 0.125 251);
+  --sidebar-primary-foreground: oklch(0.98 0.006 248);
+  --sidebar-accent: oklch(0.31 0.055 255);
+  --sidebar-accent-foreground: oklch(0.97 0.008 248);
+  --sidebar-border: oklch(0.34 0.05 255);
+  --sidebar-ring: oklch(0.66 0.125 251);
 
   --gradient-hero: linear-gradient(
     135deg,
-    oklch(0.2 0.035 248) 0%,
-    oklch(0.28 0.055 248) 55%,
-    oklch(0.33 0.06 235) 100%
+    oklch(0.19 0.038 255) 0%,
+    oklch(0.27 0.06 253) 55%,
+    oklch(0.36 0.085 251) 100%
   );
   --gradient-veil: linear-gradient(
     to top,
-    oklch(0.2 0.035 248) 8%,
-    oklch(0.2 0.035 248 / 0.55) 55%,
-    oklch(0.2 0.035 248 / 0.15) 100%
+    oklch(0.19 0.038 255) 8%,
+    oklch(0.19 0.038 255 / 0.6) 55%,
+    oklch(0.19 0.038 255 / 0.15) 100%
   );
-  --shadow-panel: 0 24px 60px -30px oklch(0.1 0.03 248 / 0.9);
+  --shadow-panel: 0 24px 60px -30px oklch(0.1 0.04 255 / 0.9);
 }
 
 

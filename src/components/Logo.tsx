@@ -1,10 +1,14 @@
-export function Concierge() {
+import logoAsset from "@/assets/nova-serenity-logo.png.asset.json";
+
+export function Concierge({ className = "h-9 w-auto" }: { className?: string }) {
   return (
-    <span
-      aria-hidden
-      className="flex size-8 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground"
-    >
-      C
-    </span>
+    <img
+      src={logoAsset.url}
+      alt="Nova Serenity"
+      className={className}
+      width={648}
+      height={392}
+      loading="eager"
+    />
   );
 }
