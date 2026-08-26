@@ -78,11 +78,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Nova Serenity – Conciergerie d'entreprise" },
+      {
+        name: "description",
+        content:
+          "Nova Serenity : pressing, cordonnerie, retouches et colis réservables en ligne sur votre lieu de travail.",
+      },
+      { name: "author", content: "Nova Serenity" },
+      { property: "og:title", content: "Nova Serenity – Conciergerie d'entreprise" },
+      {
+        property: "og:description",
+        content: "Réservez vos services de conciergerie en quelques clics.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
