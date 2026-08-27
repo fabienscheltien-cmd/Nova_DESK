@@ -25,7 +25,7 @@ export function AppHeader() {
             NOVA
           </span>
           <span
-            className="ml-1 text-xl font-light tracking-tight sm:text-2xl"
+            className="ml-1 text-xl font-bold tracking-tight sm:text-2xl"
             style={{ color: "#7EB8A2" }}
           >
             Zen
