@@ -85,12 +85,14 @@ export type Database = {
       }
       bookings: {
         Row: {
+          contact_email: string | null
           created_at: string
           dropoff_date: string
           dropoff_slot: string
           id: string
           location: string | null
           notes: string | null
+          paid_at: string | null
           reference: string
           status: Database["public"]["Enums"]["booking_status"]
           total_cents: number
@@ -98,12 +100,14 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          contact_email?: string | null
           created_at?: string
           dropoff_date: string
           dropoff_slot: string
           id?: string
           location?: string | null
           notes?: string | null
+          paid_at?: string | null
           reference?: string
           status?: Database["public"]["Enums"]["booking_status"]
           total_cents?: number
@@ -111,12 +115,14 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          contact_email?: string | null
           created_at?: string
           dropoff_date?: string
           dropoff_slot?: string
           id?: string
           location?: string | null
           notes?: string | null
+          paid_at?: string | null
           reference?: string
           status?: Database["public"]["Enums"]["booking_status"]
           total_cents?: number
