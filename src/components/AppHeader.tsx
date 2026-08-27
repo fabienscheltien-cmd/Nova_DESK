@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Concierge, LogoSymbol } from "@/components/Logo";
+import { Concierge } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 
 export function AppHeader() {
@@ -11,22 +11,16 @@ export function AppHeader() {
           className="flex items-center gap-3"
           aria-label="Nova Serenity – retour au site"
         >
-          <Concierge className="h-8 w-auto" />
+          <Concierge className="h-8 w-auto sm:h-9" />
           <span className="hidden text-[0.7rem] font-semibold tracking-[0.24em] text-muted-foreground uppercase sm:inline">
             Conciergerie
           </span>
         </a>
 
         <div className="flex items-center justify-center">
+          <Concierge className="h-9 w-auto sm:h-10" />
           <span
-            className="text-xl font-bold tracking-tight sm:text-2xl"
-            style={{ color: "#4A90D9" }}
-          >
-            NOVA
-          </span>
-          <LogoSymbol className="mx-1 h-6 sm:h-7" />
-          <span
-            className="text-xl font-bold tracking-tight sm:text-2xl"
+            className="ml-1.5 text-2xl font-bold tracking-tight sm:text-3xl"
             style={{ color: "#7EB8A2" }}
           >
             ZEN
