@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Concierge } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 
@@ -18,13 +19,13 @@ export function AppHeader() {
 
         <nav className="flex items-center gap-1">
           <Button asChild variant="ghost" size="sm">
-            <a href="https://novaserenityconciergerie.lovable.app/reserver">Réserver</a>
+            <Link to="/reserver">Réserver</Link>
           </Button>
           <Button asChild variant="ghost" size="sm">
-            <a href="https://novaserenityconciergerie.lovable.app/reservations">Réservations</a>
+            <Link to="/reservations">Réservations</Link>
           </Button>
           <Button asChild variant="ghost" size="sm">
-            <a href="https://novaserenityconciergerie.lovable.app/admin">Admin</a>
+            <Link to="/admin">Admin</Link>
           </Button>
         </nav>
       </div>
