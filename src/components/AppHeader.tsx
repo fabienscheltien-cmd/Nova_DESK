@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Concierge } from "@/components/Logo";
+import { Concierge, LogoSymbol } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 
 export function AppHeader() {
@@ -24,11 +24,12 @@ export function AppHeader() {
           >
             NOVA
           </span>
+          <LogoSymbol className="mx-1 h-6 sm:h-7" />
           <span
-            className="ml-1 text-xl font-light tracking-tight sm:text-2xl"
+            className="text-xl font-bold tracking-tight sm:text-2xl"
             style={{ color: "#7EB8A2" }}
           >
-            Zen
+            ZEN
           </span>
         </div>
 
