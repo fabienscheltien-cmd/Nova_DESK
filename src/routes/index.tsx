@@ -42,7 +42,7 @@ const HIGHLIGHTS = [
   {
     icon: ShieldCheck,
     title: "Accès collaborateurs",
-    text: "Aucun compte à créer : réservez immédiatement depuis le catalogue.",
+    text: "Identification par e-mail professionnel, sans mot de passe à retenir.",
   },
 ];
 
