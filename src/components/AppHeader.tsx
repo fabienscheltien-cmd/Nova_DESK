@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Concierge } from "@/components/Logo";
+import { Concierge, NovaZenSymbol } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { useContactEmail } from "@/components/DomainGate";
 import { clearContactEmail } from "@/lib/access";
