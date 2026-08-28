@@ -1,8 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { Concierge } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { useContactEmail } from "@/components/DomainGate";
+import { clearContactEmail } from "@/lib/access";
 
 export function AppHeader() {
+  const email = useContactEmail();
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur">
       <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-4 py-3">
@@ -37,6 +40,17 @@ export function AppHeader() {
           <Button asChild variant="ghost" size="sm">
             <Link to="/admin">Admin</Link>
           </Button>
+          {email && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden max-w-52 truncate md:inline-flex"
+              onClick={clearContactEmail}
+              title="Changer d'adresse"
+            >
+              {email}
+            </Button>
+          )}
         </nav>
       </div>
     </header>

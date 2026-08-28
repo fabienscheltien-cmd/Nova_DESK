@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { AppHeader } from "@/components/AppHeader";
+import { DomainGate } from "@/components/DomainGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +45,9 @@ export const Route = createFileRoute("/admin")({
   component: () => (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader />
-              <AdminPage />
+      <DomainGate>
+        <AdminPage />
+      </DomainGate>
     </div>
   ),
 });
