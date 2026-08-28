@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { AppHeader } from "@/components/AppHeader";
+import { DomainGate, useContactEmail } from "@/components/DomainGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +45,9 @@ export const Route = createFileRoute("/reserver")({
   component: () => (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader />
-              <BookingPage />
+      <DomainGate>
+        <BookingPage />
+      </DomainGate>
     </div>
   ),
 });
@@ -58,6 +61,7 @@ const detailsSchema = z.object({
 
 function BookingPage() {
   const navigate = useNavigate();
+  const contactEmail = useContactEmail();
   const [cart, setCart] = useState<Record<string, number>>({});
   const [date, setDate] = useState("");
   const [slot, setSlot] = useState(SLOTS[0]!);
@@ -120,6 +124,7 @@ function BookingPage() {
         location: parsed.data.location || null,
         notes: parsed.data.notes || null,
         total_cents: total,
+        contact_email: contactEmail,
       })
       .select("id")
       .single();
@@ -146,8 +151,8 @@ function BookingPage() {
       return;
     }
 
-    toast.success("Réservation enregistrée.");
-    void navigate({ to: "/reservations" });
+    toast.success("Réservation enregistrée. Finalisez le paiement.");
+    void navigate({ to: "/paiement/$id", params: { id: booking.id } });
   };
 
   return (

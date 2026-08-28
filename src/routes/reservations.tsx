@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/AppHeader";
+import { DomainGate } from "@/components/DomainGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +31,9 @@ export const Route = createFileRoute("/reservations")({
   component: () => (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader />
-              <MyBookings />
+      <DomainGate>
+        <MyBookings />
+      </DomainGate>
     </div>
   ),
 });
