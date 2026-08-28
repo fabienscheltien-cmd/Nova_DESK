@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Concierge } from "@/components/Logo";
+import { Concierge, NovaZenSymbol } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { useContactEmail } from "@/components/DomainGate";
 import { clearContactEmail } from "@/lib/access";
@@ -15,13 +15,10 @@ export function AppHeader() {
           aria-label="Nova Serenity – retour au site"
         >
           <Concierge className="h-8 w-auto sm:h-9" />
-          <span className="hidden text-[0.7rem] font-semibold tracking-[0.24em] text-muted-foreground uppercase sm:inline">
-            Conciergerie
-          </span>
         </a>
 
         <div className="flex items-center justify-center">
-          <Concierge className="h-9 w-auto sm:h-10" />
+          <NovaZenSymbol className="h-9 w-auto sm:h-10" />
           <span
             className="ml-1.5 text-2xl font-bold tracking-tight sm:text-3xl"
             style={{ color: "#7EB8A2" }}
