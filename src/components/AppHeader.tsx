@@ -8,30 +8,30 @@ export function AppHeader() {
   const email = useContactEmail();
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur">
-      <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-4 py-3">
+      <div className="mx-auto grid max-w-6xl grid-cols-[auto_minmax(0,1fr)] items-center gap-3 px-4 py-3 sm:grid-cols-3 sm:gap-4">
         <a
           href="https://www.nova-serenity.fr"
-          className="flex items-center gap-3"
+          className="flex min-w-0 items-center gap-3"
           aria-label="Nova Serenity – retour au site"
         >
-          <Concierge className="h-8 w-auto sm:h-9" />
+          <Concierge className="h-7 w-auto sm:h-9" />
         </a>
 
         <a
           href="https://www.nova-serenity.fr"
-          className="flex items-center justify-center"
+          className="flex items-center justify-self-end sm:justify-self-center"
           aria-label="NOVA ZEN – retour au site"
         >
-          <NovaZenSymbol className="h-9 w-auto sm:h-10" />
+          <NovaZenSymbol className="h-7 w-auto sm:h-10" />
           <span
-            className="ml-1.5 text-2xl font-bold tracking-tight sm:text-3xl"
+            className="ml-1.5 text-xl font-bold tracking-tight sm:text-3xl"
             style={{ color: "#7EB8A2" }}
           >
             ZEN
           </span>
         </a>
 
-        <nav className="flex items-center justify-end gap-1">
+        <nav className="col-span-2 flex flex-wrap items-center justify-center gap-1 sm:col-span-1 sm:justify-end">
           <Button asChild variant="ghost" size="sm">
             <Link to="/reserver">Réserver</Link>
           </Button>
@@ -45,7 +45,7 @@ export function AppHeader() {
             <Button
               variant="outline"
               size="sm"
-              className="hidden max-w-52 truncate md:inline-flex"
+              className="max-w-40 truncate sm:max-w-52"
               onClick={clearContactEmail}
               title="Changer d'adresse"
             >
