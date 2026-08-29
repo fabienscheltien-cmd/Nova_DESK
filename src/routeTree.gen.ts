@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ReservationsRouteImport } from './routes/reservations'
 import { Route as ReserverRouteImport } from './routes/reserver'
 import { Route as PaiementIdRouteImport } from './routes/paiement.$id'
+import { Route as VerifierTokenRouteImport } from './routes/verifier.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +41,11 @@ const PaiementIdRoute = PaiementIdRouteImport.update({
   path: '/paiement/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VerifierTokenRoute = VerifierTokenRouteImport.update({
+  id: '/verifier/$token',
+  path: '/verifier/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/reservations': typeof ReservationsRoute
   '/reserver': typeof ReserverRoute
   '/paiement/$id': typeof PaiementIdRoute
+  '/verifier/$token': typeof VerifierTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/reservations': typeof ReservationsRoute
   '/reserver': typeof ReserverRoute
   '/paiement/$id': typeof PaiementIdRoute
+  '/verifier/$token': typeof VerifierTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,12 +70,25 @@ export interface FileRoutesById {
   '/reservations': typeof ReservationsRoute
   '/reserver': typeof ReserverRoute
   '/paiement/$id': typeof PaiementIdRoute
+  '/verifier/$token': typeof VerifierTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/reservations' | '/reserver' | '/paiement/$id'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/reservations'
+    | '/reserver'
+    | '/paiement/$id'
+    | '/verifier/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/reservations' | '/reserver' | '/paiement/$id'
+  to:
+    | '/'
+    | '/admin'
+    | '/reservations'
+    | '/reserver'
+    | '/paiement/$id'
+    | '/verifier/$token'
   id:
     | '__root__'
     | '/'
@@ -75,6 +96,7 @@ export interface FileRouteTypes {
     | '/reservations'
     | '/reserver'
     | '/paiement/$id'
+    | '/verifier/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -83,6 +105,7 @@ export interface RootRouteChildren {
   ReservationsRoute: typeof ReservationsRoute
   ReserverRoute: typeof ReserverRoute
   PaiementIdRoute: typeof PaiementIdRoute
+  VerifierTokenRoute: typeof VerifierTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -122,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PaiementIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/verifier/$token': {
+      id: '/verifier/$token'
+      path: '/verifier/$token'
+      fullPath: '/verifier/$token'
+      preLoaderRoute: typeof VerifierTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -131,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReservationsRoute: ReservationsRoute,
   ReserverRoute: ReserverRoute,
   PaiementIdRoute: PaiementIdRoute,
+  VerifierTokenRoute: VerifierTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
