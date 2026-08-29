@@ -83,7 +83,7 @@ function Index() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-16">
+        <section className="relative z-10 mx-auto -mt-[2cm] max-w-6xl px-4 py-16">
           <div className="grid gap-4 sm:grid-cols-3">
             {HIGHLIGHTS.map(({ icon: Icon, title, text }) => (
               <Card key={title} className="panel border-border/70 bg-card">
