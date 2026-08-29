@@ -10,14 +10,18 @@ export function AppHeader() {
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur">
       <div className="mx-auto grid max-w-6xl grid-cols-3 items-center gap-4 px-4 py-3">
         <a
-          href="https://novaserenityconciergerie.lovable.app"
+          href="https://www.nova-serenity.fr"
           className="flex items-center gap-3"
           aria-label="Nova Serenity – retour au site"
         >
           <Concierge className="h-8 w-auto sm:h-9" />
         </a>
 
-        <div className="flex items-center justify-center">
+        <a
+          href="https://www.nova-serenity.fr"
+          className="flex items-center justify-center"
+          aria-label="NOVA ZEN – retour au site"
+        >
           <NovaZenSymbol className="h-9 w-auto sm:h-10" />
           <span
             className="ml-1.5 text-2xl font-bold tracking-tight sm:text-3xl"
@@ -25,7 +29,7 @@ export function AppHeader() {
           >
             ZEN
           </span>
-        </div>
+        </a>
 
         <nav className="flex items-center justify-end gap-1">
           <Button asChild variant="ghost" size="sm">
