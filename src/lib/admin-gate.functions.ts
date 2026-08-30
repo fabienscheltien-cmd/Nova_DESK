@@ -8,7 +8,7 @@ function sessionConfig() {
   return {
     password: process.env["SESSION_SECRET"]!,
     name: "novazen-admin",
-    maxAge: 60 * 60 * 8,
+    maxAge: 60 * 60 * 24 * 7,
     cookie: { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" },
   };
 }
