@@ -86,28 +86,47 @@ function AdminPage() {
 
 function BookingsAdmin() {
   const queryClient = useQueryClient();
+  const [busyId, setBusyId] = useState<string | null>(null);
   const bookings = useQuery({
     queryKey: ["admin-bookings"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("*, booking_items(*)")
+        .select("*, booking_items(*), booking_status_history(*)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
   });
 
-  const setStatus = async (id: string, status: string) => {
+  const setStatus = async (
+    id: string,
+    status: string,
+    previousStatus: string,
+  ): Promise<boolean> => {
     const { error } = await supabase
       .from("bookings")
       .update({ status: status as never })
       .eq("id", id);
     if (error) {
       toast.error("Mise à jour impossible.");
-      return;
+      return false;
     }
+    const { error: histError } = await supabase.from("booking_status_history").insert({
+      booking_id: id,
+      from_status: previousStatus as never,
+      to_status: status as never,
+    });
+    if (histError) toast.error("Historique non enregistré.");
     void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+    return true;
+  };
+
+  const markDone = async (b: { id: string; status: string; reference: string }) => {
+    setBusyId(b.id);
+    const ok = await setStatus(b.id, "termine", b.status);
+    setBusyId(null);
+    if (ok) toast.success(`Dépôt ${b.reference} marqué comme terminé.`);
   };
 
   return (
@@ -125,18 +144,33 @@ function BookingsAdmin() {
                 {b.location ? ` · ${b.location}` : ""}
               </CardDescription>
             </div>
-            <Select value={b.status} onValueChange={(v) => setStatus(b.id, v)}>
-              <SelectTrigger className="w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {STATUS_LABELS[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              {b.status !== "termine" && b.status !== "cancelled" && (
+                <Button
+                  size="sm"
+                  disabled={busyId === b.id}
+                  onClick={() => markDone(b)}
+                >
+                  <CheckCheck className="size-4" />
+                  Terminer
+                </Button>
+              )}
+              <Select
+                value={b.status}
+                onValueChange={(v) => setStatus(b.id, v, b.status)}
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {STATUS_LABELS[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <ul className="space-y-1">
@@ -153,6 +187,24 @@ function BookingsAdmin() {
             </ul>
             {b.notes && <p className="text-muted-foreground">Note : {b.notes}</p>}
             <p className="font-semibold tabular-nums">{formatPrice(b.total_cents)}</p>
+            {b.booking_status_history.length > 0 && (
+              <div className="border-t border-border/50 pt-2">
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Historique
+                </p>
+                <ul className="space-y-0.5 text-xs text-muted-foreground">
+                  {[...b.booking_status_history]
+                    .sort((a, b2) => b2.changed_at.localeCompare(a.changed_at))
+                    .map((h) => (
+                      <li key={h.id}>
+                        {new Date(h.changed_at).toLocaleString("fr-FR")} —{" "}
+                        {h.from_status ? STATUS_LABELS[h.from_status] : "—"} →{" "}
+                        {STATUS_LABELS[h.to_status]}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}
