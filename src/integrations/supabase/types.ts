@@ -83,6 +83,38 @@ export type Database = {
           },
         ]
       }
+      booking_status_history: {
+        Row: {
+          booking_id: string
+          changed_at: string
+          from_status: Database["public"]["Enums"]["booking_status"] | null
+          id: string
+          to_status: Database["public"]["Enums"]["booking_status"]
+        }
+        Insert: {
+          booking_id: string
+          changed_at?: string
+          from_status?: Database["public"]["Enums"]["booking_status"] | null
+          id?: string
+          to_status: Database["public"]["Enums"]["booking_status"]
+        }
+        Update: {
+          booking_id?: string
+          changed_at?: string
+          from_status?: Database["public"]["Enums"]["booking_status"] | null
+          id?: string
+          to_status?: Database["public"]["Enums"]["booking_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_status_history_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           contact_email: string | null
@@ -300,6 +332,7 @@ export type Database = {
         | "ready"
         | "delivered"
         | "cancelled"
+        | "termine"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -435,6 +468,7 @@ export const Constants = {
         "ready",
         "delivered",
         "cancelled",
+        "termine",
       ],
     },
   },
