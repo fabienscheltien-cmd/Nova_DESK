@@ -20,14 +20,14 @@ export function AppHeader() {
         <a
           href="https://www.nova-serenity.fr"
           className="flex items-center justify-self-end sm:justify-self-center"
-          aria-label="NOVA ZEN – retour au site"
+          aria-label="NOVA ZEN SPACE – retour au site"
         >
           <NovaZenSymbol className="h-7 w-auto sm:h-10" />
           <span
             className="ml-1.5 text-xl font-bold tracking-tight sm:text-3xl"
             style={{ color: "#7EB8A2" }}
           >
-            ZEN
+            ZEN SPACE
           </span>
         </a>
 
