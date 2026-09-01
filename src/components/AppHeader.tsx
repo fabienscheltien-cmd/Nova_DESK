@@ -23,7 +23,10 @@ export function AppHeader() {
           aria-label="NOVA ZEN – retour au site"
         >
           <NovaZenSymbol className="h-7 w-auto sm:h-10" />
-          <span className="ml-2 text-xl font-bold tracking-tight sm:text-3xl" style={{ color: "#7EB8A2" }}>
+          <span
+            className="ml-1.5 text-xl font-bold tracking-tight sm:text-3xl"
+            style={{ color: "#7EB8A2" }}
+          >
             ZEN
           </span>
         </a>
