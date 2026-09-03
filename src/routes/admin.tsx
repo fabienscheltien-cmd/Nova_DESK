@@ -23,7 +23,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { formatLeadTime, formatPrice, STATUS_LABELS } from "@/lib/format";
+import { formatLeadTime, formatPrice, STATUS_FLOW, STATUS_LABELS } from "@/lib/format";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
