@@ -55,7 +55,7 @@ export const Route = createFileRoute("/admin")({
   ),
 });
 
-const STATUSES = Object.keys(STATUS_LABELS);
+const STATUSES = [...STATUS_FLOW];
 
 function AdminPage() {
   return (
