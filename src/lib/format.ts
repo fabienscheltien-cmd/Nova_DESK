@@ -11,13 +11,24 @@ export function formatLeadTime(hours: number): string {
 }
 
 export const STATUS_LABELS: Record<string, string> = {
-  pending: "En attente",
-  confirmed: "Confirmée",
+  pending: "Demandé",
+  confirmed: "Réceptionné",
   in_progress: "En cours",
-  ready: "Prête",
-  delivered: "Livrée",
-  cancelled: "Annulée",
-  termine: "Terminé",
+  ready: "Prêt",
+  delivered: "Retiré",
+  cancelled: "Annulé",
+  termine: "Clôturé",
 };
+
+/** Parcours officiel affiché dans l'application. */
+export const STATUS_FLOW = [
+  "pending",
+  "confirmed",
+  "ready",
+  "delivered",
+  "termine",
+  "cancelled",
+] as const;
+
 
 export const SLOTS = ["08:00 – 10:00", "10:00 – 12:00", "14:00 – 16:00", "16:00 – 18:00"];
