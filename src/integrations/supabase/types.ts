@@ -125,6 +125,7 @@ export type Database = {
           location: string | null
           notes: string | null
           paid_at: string | null
+          payment_method: string | null
           reference: string
           status: Database["public"]["Enums"]["booking_status"]
           total_cents: number
@@ -140,6 +141,7 @@ export type Database = {
           location?: string | null
           notes?: string | null
           paid_at?: string | null
+          payment_method?: string | null
           reference?: string
           status?: Database["public"]["Enums"]["booking_status"]
           total_cents?: number
@@ -155,6 +157,7 @@ export type Database = {
           location?: string | null
           notes?: string | null
           paid_at?: string | null
+          payment_method?: string | null
           reference?: string
           status?: Database["public"]["Enums"]["booking_status"]
           total_cents?: number
