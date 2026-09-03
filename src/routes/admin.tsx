@@ -103,10 +103,13 @@ function BookingsAdmin() {
     id: string,
     status: string,
     previousStatus: string,
+    paidAt: string | null,
   ): Promise<boolean> => {
+    // Une demande retirée et payée se clôture automatiquement.
+    const target = status === "delivered" && paidAt ? "termine" : status;
     const { error } = await supabase
       .from("bookings")
-      .update({ status: status as never })
+      .update({ status: target as never })
       .eq("id", id);
     if (error) {
       toast.error("Mise à jour impossible.");
@@ -115,18 +118,50 @@ function BookingsAdmin() {
     const { error: histError } = await supabase.from("booking_status_history").insert({
       booking_id: id,
       from_status: previousStatus as never,
-      to_status: status as never,
+      to_status: target as never,
     });
     if (histError) toast.error("Historique non enregistré.");
     void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+    if (target === "termine" && status === "delivered") {
+      toast.success("Dépôt retiré et payé : clôturé automatiquement.");
+    }
     return true;
   };
 
-  const markDone = async (b: { id: string; status: string; reference: string }) => {
+  const togglePayment = async (b: {
+    id: string;
+    status: string;
+    paid_at: string | null;
+    reference: string;
+  }) => {
     setBusyId(b.id);
-    const ok = await setStatus(b.id, "termine", b.status);
+    const paying = !b.paid_at;
+    const { error } = await supabase
+      .from("bookings")
+      .update({
+        paid_at: paying ? new Date().toISOString() : null,
+        payment_method: paying ? "accueil" : null,
+      })
+      .eq("id", b.id);
+    if (error) {
+      setBusyId(null);
+      toast.error("Paiement non enregistré.");
+      return;
+    }
+    if (paying && b.status === "delivered") {
+      await setStatus(b.id, "termine", b.status, null);
+      toast.success(`Dépôt ${b.reference} payé et clôturé.`);
+    } else {
+      void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+      toast.success(paying ? "Paiement à l'accueil enregistré." : "Paiement annulé.");
+    }
     setBusyId(null);
-    if (ok) toast.success(`Dépôt ${b.reference} marqué comme terminé.`);
+  };
+
+  const NEXT_STEP: Record<string, { to: string; label: string }> = {
+    pending: { to: "confirmed", label: "Réceptionner" },
+    confirmed: { to: "ready", label: "Marquer prêt" },
+    ready: { to: "delivered", label: "Marquer retiré" },
   };
 
   return (
@@ -138,26 +173,47 @@ function BookingsAdmin() {
         <Card key={b.id} className="panel border-border/70">
           <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
             <div>
-              <CardTitle className="text-base">Dépôt {b.reference}</CardTitle>
+              <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+                Dépôt {b.reference}
+                {b.paid_at ? (
+                  b.payment_method === "accueil" ? (
+                    <Badge variant="outline">Payé à l'accueil</Badge>
+                  ) : (
+                    <Badge>Payé en ligne</Badge>
+                  )
+                ) : (
+                  <Badge variant="secondary">Non payé</Badge>
+                )}
+              </CardTitle>
               <CardDescription>
                 {new Date(b.dropoff_date).toLocaleDateString("fr-FR")} · {b.dropoff_slot}
                 {b.location ? ` · ${b.location}` : ""}
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              {b.status !== "termine" && b.status !== "cancelled" && (
+            <div className="flex flex-wrap items-center gap-2">
+              {b.status !== "termine" && b.status !== "cancelled" && NEXT_STEP[b.status] && (
                 <Button
                   size="sm"
                   disabled={busyId === b.id}
-                  onClick={() => markDone(b)}
+                  onClick={() =>
+                    setStatus(b.id, NEXT_STEP[b.status]!.to, b.status, b.paid_at)
+                  }
                 >
                   <CheckCheck className="size-4" />
-                  Terminer
+                  {NEXT_STEP[b.status]!.label}
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant={b.paid_at ? "ghost" : "outline"}
+                disabled={busyId === b.id}
+                onClick={() => togglePayment(b)}
+              >
+                {b.paid_at ? "Annuler le paiement" : "Payé à l'accueil"}
+              </Button>
               <Select
                 value={b.status}
-                onValueChange={(v) => setStatus(b.id, v, b.status)}
+                onValueChange={(v) => setStatus(b.id, v, b.status, b.paid_at)}
               >
                 <SelectTrigger className="w-44">
                   <SelectValue />
@@ -172,6 +228,7 @@ function BookingsAdmin() {
               </Select>
             </div>
           </CardHeader>
+
           <CardContent className="space-y-2 text-sm">
             <ul className="space-y-1">
               {b.booking_items.map((i) => (
