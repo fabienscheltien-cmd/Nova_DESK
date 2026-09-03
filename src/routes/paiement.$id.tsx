@@ -66,7 +66,11 @@ function PaymentPage() {
     setBusy(true);
     const { error } = await supabase
       .from("bookings")
-      .update({ status: "confirmed", paid_at: new Date().toISOString() })
+      .update({
+        status: b.status === "delivered" ? "termine" : b.status,
+        paid_at: new Date().toISOString(),
+        payment_method: "en_ligne",
+      })
       .eq("id", id);
     setBusy(false);
     if (error) {
