@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Minus, Plus } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { CalendarIcon, Clock, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -9,9 +11,15 @@ import { AppHeader } from "@/components/AppHeader";
 import { DomainGate, useContactEmail } from "@/components/DomainGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -22,6 +30,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { formatLeadTime, formatPrice, SLOTS } from "@/lib/format";
 
 export const Route = createFileRoute("/reserver")({
