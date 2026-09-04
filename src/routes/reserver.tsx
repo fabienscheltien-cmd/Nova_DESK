@@ -55,7 +55,6 @@ export const Route = createFileRoute("/reserver")({
 const detailsSchema = z.object({
   dropoff_date: z.string().min(1, "Choisissez une date de dépôt"),
   dropoff_slot: z.string().min(1, "Choisissez un créneau"),
-  location: z.string().trim().max(120).optional(),
   notes: z.string().trim().max(1000).optional(),
 });
 
@@ -65,7 +64,6 @@ function BookingPage() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [date, setDate] = useState("");
   const [slot, setSlot] = useState(SLOTS[0]!);
-  const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
 
