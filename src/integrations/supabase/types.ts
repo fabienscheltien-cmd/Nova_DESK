@@ -224,6 +224,7 @@ export type Database = {
           icon: string | null
           id: string
           name: string
+          pickup_info: string | null
           slug: string
           sort_order: number
         }
@@ -233,6 +234,7 @@ export type Database = {
           icon?: string | null
           id?: string
           name: string
+          pickup_info?: string | null
           slug: string
           sort_order?: number
         }
@@ -242,6 +244,7 @@ export type Database = {
           icon?: string | null
           id?: string
           name?: string
+          pickup_info?: string | null
           slug?: string
           sort_order?: number
         }
