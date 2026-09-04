@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Minus, Plus } from "lucide-react";
+import { Clock, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -55,7 +55,6 @@ export const Route = createFileRoute("/reserver")({
 const detailsSchema = z.object({
   dropoff_date: z.string().min(1, "Choisissez une date de dépôt"),
   dropoff_slot: z.string().min(1, "Choisissez un créneau"),
-  location: z.string().trim().max(120).optional(),
   notes: z.string().trim().max(1000).optional(),
 });
 
@@ -65,7 +64,6 @@ function BookingPage() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [date, setDate] = useState("");
   const [slot, setSlot] = useState(SLOTS[0]!);
-  const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -107,7 +105,6 @@ function BookingPage() {
     const parsed = detailsSchema.safeParse({
       dropoff_date: date,
       dropoff_slot: slot,
-      location,
       notes,
     });
     if (!parsed.success) {
@@ -121,7 +118,6 @@ function BookingPage() {
       .insert({
         dropoff_date: parsed.data.dropoff_date,
         dropoff_slot: parsed.data.dropoff_slot,
-        location: parsed.data.location || null,
         notes: parsed.data.notes || null,
         total_cents: total,
         contact_email: contactEmail,
@@ -151,7 +147,7 @@ function BookingPage() {
       return;
     }
 
-    toast.success("Réservation enregistrée. Finalisez le paiement.");
+    toast.success("Réservation enregistrée. Nous attendons vos affaires à l'accueil.");
     void navigate({ to: "/paiement/$id", params: { id: booking.id } });
   };
 
@@ -181,6 +177,12 @@ function BookingPage() {
             {catalogue.data.categories.map((c) => (
               <TabsContent key={c.id} value={c.slug} className="mt-5 space-y-3">
                 <p className="text-sm text-muted-foreground">{c.description}</p>
+                {c.pickup_info && (
+                  <p className="flex items-center gap-2 text-sm font-medium text-accent">
+                    <Clock className="size-4" />
+                    {c.pickup_info}
+                  </p>
+                )}
                 {services
                   .filter((s) => s.category_id === c.id)
                   .map((s) => (
@@ -277,17 +279,6 @@ function BookingPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="loc">Lieu / bureau</Label>
-              <Input
-                id="loc"
-                value={location}
-                maxLength={120}
-                placeholder="Accueil, 3e étage…"
-                onChange={(e) => setLocation(e.target.value)}
-              />
             </div>
 
             <div className="space-y-2">

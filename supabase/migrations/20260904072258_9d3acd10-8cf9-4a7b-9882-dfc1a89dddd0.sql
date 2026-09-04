@@ -1,0 +1,1 @@
+ALTER TABLE public.service_categories ADD COLUMN IF NOT EXISTS pickup_info text;
