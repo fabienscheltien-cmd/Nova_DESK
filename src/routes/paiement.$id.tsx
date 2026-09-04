@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, CreditCard, Mail } from "lucide-react";
+import { CheckCircle2, CreditCard, Mail, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/AppHeader";
@@ -104,6 +104,15 @@ function PaymentPage() {
       <p className="mt-1 text-sm text-muted-foreground">
         Dépôt {b.reference} · {formatPrice(b.total_cents)}
       </p>
+
+      <div className="mt-4 flex items-start gap-2 rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm">
+        <MapPin className="mt-0.5 size-4 shrink-0 text-accent" />
+        <p>
+          Votre réservation est enregistrée : <strong>nous attendons vos affaires à
+          l'accueil</strong>. Nos équipes les réceptionneront et les confieront au collecteur selon
+          le planning de chaque prestation.
+        </p>
+      </div>
 
       <Card className="panel mt-6 border-border/70">
         <CardHeader>
