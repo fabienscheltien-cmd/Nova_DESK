@@ -112,7 +112,7 @@ function BookingPage() {
       return;
     }
     const parsed = detailsSchema.safeParse({
-      dropoff_date: date,
+      dropoff_date: date ? format(date, "yyyy-MM-dd") : "",
       dropoff_slot: slot,
       notes,
     });
