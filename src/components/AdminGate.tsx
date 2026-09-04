@@ -49,7 +49,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
     const res = await unlock({ data: { password } });
     setBusy(false);
     if (!res.ok) {
-      setError("Veuillez saisir une adresse e-mail.");
+      setError("Mot de passe incorrect.");
       return;
     }
     setPassword("");
@@ -63,19 +63,17 @@ export function AdminGate({ children }: { children: ReactNode }) {
         <CardHeader>
           <CardTitle>Accès administrateur</CardTitle>
           <CardDescription>
-            Mode test : la sécurité est désactivée, n'importe quelle adresse e-mail donne accès à l'espace
-            administrateur.
+            Cet espace est réservé à l'équipe conciergerie. Saisissez le mot de passe administrateur.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={submit}>
             <div className="space-y-2">
-              <Label htmlFor="admin-password">Adresse e-mail</Label>
+              <Label htmlFor="admin-password">Mot de passe</Label>
               <Input
                 id="admin-password"
-                type="email"
-                autoComplete="email"
-                placeholder="prenom.nom@entreprise.fr"
+                type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -85,7 +83,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={busy || password.length === 0}>
-              Accéder
+              Déverrouiller
             </Button>
           </form>
         </CardContent>
