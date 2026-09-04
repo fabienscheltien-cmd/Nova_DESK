@@ -85,7 +85,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={busy || password.length === 0}>
-              Déverrouiller
+              Accéder
             </Button>
           </form>
         </CardContent>
