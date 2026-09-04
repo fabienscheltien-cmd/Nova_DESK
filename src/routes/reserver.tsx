@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Minus, Plus } from "lucide-react";
+import { Clock, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -177,6 +177,12 @@ function BookingPage() {
             {catalogue.data.categories.map((c) => (
               <TabsContent key={c.id} value={c.slug} className="mt-5 space-y-3">
                 <p className="text-sm text-muted-foreground">{c.description}</p>
+                {c.pickup_info && (
+                  <p className="flex items-center gap-2 text-sm font-medium text-accent">
+                    <Clock className="size-4" />
+                    {c.pickup_info}
+                  </p>
+                )}
                 {services
                   .filter((s) => s.category_id === c.id)
                   .map((s) => (
