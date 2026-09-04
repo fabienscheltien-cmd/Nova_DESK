@@ -105,7 +105,6 @@ function BookingPage() {
     const parsed = detailsSchema.safeParse({
       dropoff_date: date,
       dropoff_slot: slot,
-      location,
       notes,
     });
     if (!parsed.success) {
@@ -119,7 +118,6 @@ function BookingPage() {
       .insert({
         dropoff_date: parsed.data.dropoff_date,
         dropoff_slot: parsed.data.dropoff_slot,
-        location: parsed.data.location || null,
         notes: parsed.data.notes || null,
         total_cents: total,
         contact_email: contactEmail,
