@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Minus, Plus } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { CalendarIcon, Clock, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -9,9 +11,15 @@ import { AppHeader } from "@/components/AppHeader";
 import { DomainGate, useContactEmail } from "@/components/DomainGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -22,6 +30,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { formatLeadTime, formatPrice, SLOTS } from "@/lib/format";
 
 export const Route = createFileRoute("/reserver")({
@@ -62,7 +71,7 @@ function BookingPage() {
   const navigate = useNavigate();
   const contactEmail = useContactEmail();
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState<Date | undefined>();
   const [slot, setSlot] = useState(SLOTS[0]!);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -103,7 +112,7 @@ function BookingPage() {
       return;
     }
     const parsed = detailsSchema.safeParse({
-      dropoff_date: date,
+      dropoff_date: date ? format(date, "yyyy-MM-dd") : "",
       dropoff_slot: slot,
       notes,
     });
@@ -255,14 +264,36 @@ function BookingPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="date">Date de dépôt</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                min={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setDate(e.target.value)}
-              />
+              <Label>Date de dépôt</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !date && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 size-4" />
+                    {date ? (
+                      format(date, "PPP", { locale: fr })
+                    ) : (
+                      <span>Choisir une date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    initialFocus
+                    locale={fr}
+                    disabled={{ before: new Date() }}
+                    className="pointer-events-auto p-3"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
