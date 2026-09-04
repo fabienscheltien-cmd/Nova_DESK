@@ -264,14 +264,36 @@ function BookingPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="date">Date de dépôt</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                min={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setDate(e.target.value)}
-              />
+              <Label>Date de dépôt</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !date && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 size-4" />
+                    {date ? (
+                      format(date, "PPP", { locale: fr })
+                    ) : (
+                      <span>Choisir une date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    initialFocus
+                    locale={fr}
+                    disabled={{ before: new Date() }}
+                    className="pointer-events-auto p-3"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
