@@ -71,7 +71,7 @@ function BookingPage() {
   const navigate = useNavigate();
   const contactEmail = useContactEmail();
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState<Date | undefined>();
   const [slot, setSlot] = useState(SLOTS[0]!);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
