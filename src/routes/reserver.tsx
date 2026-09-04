@@ -147,7 +147,7 @@ function BookingPage() {
       return;
     }
 
-    toast.success("Réservation enregistrée. Finalisez le paiement.");
+    toast.success("Réservation enregistrée. Nous attendons vos affaires à l'accueil.");
     void navigate({ to: "/paiement/$id", params: { id: booking.id } });
   };
 
@@ -279,17 +279,6 @@ function BookingPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="loc">Lieu / bureau</Label>
-              <Input
-                id="loc"
-                value={location}
-                maxLength={120}
-                placeholder="Accueil, 3e étage…"
-                onChange={(e) => setLocation(e.target.value)}
-              />
             </div>
 
             <div className="space-y-2">
