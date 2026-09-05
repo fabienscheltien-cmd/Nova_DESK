@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -62,7 +62,15 @@ function AdminPage() {
     <main className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Administration</h1>
-        <AdminLockButton />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/admin-acces">Accès collaborateurs</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/admin-plannings">Plannings de collecte</Link>
+          </Button>
+          <AdminLockButton />
+        </div>
       </div>
       <Tabs defaultValue="bookings" className="mt-6">
         <TabsList>
