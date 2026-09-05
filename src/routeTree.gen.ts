@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminAccesRouteImport } from './routes/admin-acces'
+import { Route as AdminPlanningsRouteImport } from './routes/admin-plannings'
 import { Route as ReservationsRouteImport } from './routes/reservations'
 import { Route as ReserverRouteImport } from './routes/reserver'
 import { Route as PaiementIdRouteImport } from './routes/paiement.$id'
@@ -30,6 +31,11 @@ const AdminRoute = AdminRouteImport.update({
 const AdminAccesRoute = AdminAccesRouteImport.update({
   id: '/admin-acces',
   path: '/admin-acces',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPlanningsRoute = AdminPlanningsRouteImport.update({
+  id: '/admin-plannings',
+  path: '/admin-plannings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReservationsRoute = ReservationsRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-acces': typeof AdminAccesRoute
+  '/admin-plannings': typeof AdminPlanningsRoute
   '/reservations': typeof ReservationsRoute
   '/reserver': typeof ReserverRoute
   '/paiement/$id': typeof PaiementIdRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-acces': typeof AdminAccesRoute
+  '/admin-plannings': typeof AdminPlanningsRoute
   '/reservations': typeof ReservationsRoute
   '/reserver': typeof ReserverRoute
   '/paiement/$id': typeof PaiementIdRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-acces': typeof AdminAccesRoute
+  '/admin-plannings': typeof AdminPlanningsRoute
   '/reservations': typeof ReservationsRoute
   '/reserver': typeof ReserverRoute
   '/paiement/$id': typeof PaiementIdRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-acces'
+    | '/admin-plannings'
     | '/reservations'
     | '/reserver'
     | '/paiement/$id'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-acces'
+    | '/admin-plannings'
     | '/reservations'
     | '/reserver'
     | '/paiement/$id'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-acces'
+    | '/admin-plannings'
     | '/reservations'
     | '/reserver'
     | '/paiement/$id'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AdminAccesRoute: typeof AdminAccesRoute
+  AdminPlanningsRoute: typeof AdminPlanningsRoute
   ReservationsRoute: typeof ReservationsRoute
   ReserverRoute: typeof ReserverRoute
   PaiementIdRoute: typeof PaiementIdRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/admin-acces'
       fullPath: '/admin-acces'
       preLoaderRoute: typeof AdminAccesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin-plannings': {
+      id: '/admin-plannings'
+      path: '/admin-plannings'
+      fullPath: '/admin-plannings'
+      preLoaderRoute: typeof AdminPlanningsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reservations': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AdminAccesRoute: AdminAccesRoute,
+  AdminPlanningsRoute: AdminPlanningsRoute,
   ReservationsRoute: ReservationsRoute,
   ReserverRoute: ReserverRoute,
   PaiementIdRoute: PaiementIdRoute,
