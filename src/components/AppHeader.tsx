@@ -11,27 +11,23 @@ export function AppHeader() {
       <div className="mx-auto grid max-w-6xl grid-cols-[auto_minmax(0,1fr)] items-center gap-3 px-4 py-3 sm:grid-cols-3 sm:gap-4">
         <a
           href="https://www.nova-serenity.fr"
-          className="flex min-w-0 items-center gap-2 sm:gap-3"
-          aria-label="Nova CARE – retour au site"
+          className="flex min-w-0 items-center gap-3"
+          aria-label="Nova Serenity – retour au site"
         >
           <Concierge className="h-7 w-auto sm:h-9" />
-          <span className="whitespace-nowrap text-lg font-bold tracking-tight sm:text-2xl">
-            <span style={{ color: "#4A90D9" }}>Nova</span>{" "}
-            <span style={{ color: "#7EB8A2" }}>CARE</span>
-          </span>
         </a>
 
         <a
           href="https://www.nova-serenity.fr"
           className="flex items-center justify-self-end sm:justify-self-center"
-          aria-label="NOVA ZEN SPACE – retour au site"
+          aria-label="NOVA CARE – retour au site"
         >
           <NovaZenSymbol className="h-7 w-auto sm:h-10" />
           <span
             className="ml-1.5 text-xl font-bold tracking-tight sm:text-3xl"
             style={{ color: "#7EB8A2" }}
           >
-            ZEN SPACE
+            CARE
           </span>
         </a>
 
