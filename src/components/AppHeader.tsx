@@ -27,7 +27,7 @@ export function AppHeader() {
             className="ml-1.5 text-xl font-bold tracking-tight sm:text-3xl"
             style={{ color: "#7EB8A2" }}
           >
-            CARE
+            DESK
           </span>
         </a>
 
