@@ -20,7 +20,7 @@ export function AppHeader() {
         <a
           href="https://www.nova-serenity.fr"
           className="flex items-center justify-self-end sm:justify-self-center"
-          aria-label="NOVA CARE – retour au site"
+          aria-label="NOVA DESK – retour au site"
         >
           <NovaZenSymbol className="h-7 w-auto sm:h-10" />
           <span
