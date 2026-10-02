@@ -7,7 +7,8 @@ import { z } from "zod";
 
 import { AppHeader } from "@/components/AppHeader";
 import { AdminGate, AdminLockButton } from "@/components/AdminGate";
-import { DomainGate } from "@/components/DomainGate";
+import { DomainGate, useContactEmail } from "@/components/DomainGate";
+import { isSuperAdmin } from "@/lib/super-admin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,7 +58,69 @@ export const Route = createFileRoute("/admin")({
 
 const STATUSES = [...STATUS_FLOW];
 
+function CategoryForm({ count, onDone }: { count: number; onDone: () => void }) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [pickup, setPickup] = useState("");
+  const add = async () => {
+    const n = name.trim();
+    if (n.length < 2) {
+      toast.error("Nom de catégorie trop court");
+      return;
+    }
+    const slug =
+      n
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "") || `cat-${Date.now()}`;
+    const { error } = await supabase.from("service_categories").insert({
+      name: n.slice(0, 80),
+      slug,
+      description: description.trim() || null,
+      pickup_info: pickup.trim() || null,
+      sort_order: count + 1,
+    });
+    if (error) {
+      toast.error("Catégorie non créée (nom déjà utilisé ?).");
+      return;
+    }
+    setName("");
+    setDescription("");
+    setPickup("");
+    toast.success("Catégorie créée.");
+    onDone();
+  };
+  return (
+    <Card className="panel border-border/70">
+      <CardHeader>
+        <CardTitle className="text-base">Créer une catégorie</CardTitle>
+        <CardDescription>Elle apparaîtra comme nouvel onglet sur la page de réservation.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 sm:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="cat-name">Nom</Label>
+          <Input id="cat-name" value={name} maxLength={80} placeholder="Soins cuir" onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="cat-desc">Description</Label>
+          <Input id="cat-desc" value={description} maxLength={200} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="cat-pickup">Planning de collecte</Label>
+          <Input id="cat-pickup" value={pickup} maxLength={160} placeholder="Collecte le lundi à 10h" onChange={(e) => setPickup(e.target.value)} />
+        </div>
+        <div className="sm:col-span-3">
+          <Button onClick={add}>Créer la catégorie</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function AdminPage() {
+  const email = useContactEmail();
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -66,6 +129,11 @@ function AdminPage() {
           <Button asChild variant="outline" size="sm">
             <Link to="/admin-acces">Accès collaborateurs</Link>
           </Button>
+          {isSuperAdmin(email) && (
+            <Button asChild size="sm">
+              <Link to="/super-admin">Super Admin</Link>
+            </Button>
+          )}
           <Button asChild variant="outline" size="sm">
             <Link to="/admin-plannings">Plannings de collecte</Link>
           </Button>
@@ -350,6 +418,10 @@ function CatalogueAdmin() {
 
   return (
     <div className="space-y-6">
+      <CategoryForm
+        count={data.data?.categories.length ?? 0}
+        onDone={() => void refresh()}
+      />
       <Card className="panel border-border/70">
         <CardHeader>
           <CardTitle className="text-base">Ajouter une prestation</CardTitle>
