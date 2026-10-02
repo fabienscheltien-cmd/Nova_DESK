@@ -17,10 +17,10 @@ export function AppHeader() {
           <Concierge className="h-7 w-auto sm:h-9" />
         </a>
 
-        <a
-          href="https://www.nova-serenity.fr"
+        <Link
+          to="/"
           className="flex items-center justify-self-end sm:justify-self-center"
-          aria-label="NOVA DESK – retour au site"
+          aria-label="NOVA DESK – accueil"
         >
           <NovaZenSymbol className="h-7 w-auto sm:h-10" />
           <span
@@ -29,7 +29,7 @@ export function AppHeader() {
           >
             DESK
           </span>
-        </a>
+        </Link>
 
         <nav className="col-span-2 flex flex-wrap items-center justify-center gap-1 sm:col-span-1 sm:justify-end">
           <Button asChild variant="ghost" size="sm">
