@@ -64,8 +64,8 @@ export function EditBookingItems({
 
   const save = async () => {
     const valid = rows.filter((r) => r.service_id && r.quantity > 0);
-    if (!valid.length) return toast.error("Ajoutez au moins une prestation.");
-    if (!agreed) return toast.error("Confirmez l'accord du client.");
+    if (!valid.length) { toast.error("Ajoutez au moins une prestation."); return; }
+    if (!agreed) { toast.error("Confirmez l'accord du client."); return; }
     setSaving(true);
     const { error: delErr } = await supabase
       .from("booking_items")
@@ -96,7 +96,7 @@ export function EditBookingItems({
           })
           .eq("id", bookingId);
     setSaving(false);
-    if (bErr) return toast.error("Modification impossible.");
+    if (bErr) { toast.error("Modification impossible."); return; }
     toast.success("Prestations modifiées (accord client).");
     setOpen(false);
     onSaved();
