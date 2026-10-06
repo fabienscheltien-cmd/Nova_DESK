@@ -1,0 +1,1 @@
+ALTER TABLE public.bookings ADD COLUMN modified_by_reception_at timestamptz, ADD COLUMN modification_note text;

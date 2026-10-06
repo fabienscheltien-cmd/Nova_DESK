@@ -123,6 +123,8 @@ export type Database = {
           dropoff_slot: string
           id: string
           location: string | null
+          modification_note: string | null
+          modified_by_reception_at: string | null
           notes: string | null
           paid_at: string | null
           payment_method: string | null
@@ -139,6 +141,8 @@ export type Database = {
           dropoff_slot: string
           id?: string
           location?: string | null
+          modification_note?: string | null
+          modified_by_reception_at?: string | null
           notes?: string | null
           paid_at?: string | null
           payment_method?: string | null
@@ -155,6 +159,8 @@ export type Database = {
           dropoff_slot?: string
           id?: string
           location?: string | null
+          modification_note?: string | null
+          modified_by_reception_at?: string | null
           notes?: string | null
           paid_at?: string | null
           payment_method?: string | null
