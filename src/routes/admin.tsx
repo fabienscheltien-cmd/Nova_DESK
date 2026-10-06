@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { AdminGate, AdminLockButton } from "@/components/AdminGate";
 import { DomainGate, useContactEmail } from "@/components/DomainGate";
 import { isSuperAdmin } from "@/lib/super-admin";
+import { EditBookingItems } from "@/components/EditBookingItems";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -318,8 +319,26 @@ function BookingsAdmin() {
                 </li>
               ))}
             </ul>
+            {b.modified_by_reception_at && (
+              <p className="text-xs text-accent">
+                Modifiée par l'accueil avec accord client le{" "}
+                {new Date(b.modified_by_reception_at).toLocaleString("fr-FR")}
+                {b.modification_note ? ` — ${b.modification_note}` : ""}
+              </p>
+            )}
             {b.notes && <p className="text-muted-foreground">Note : {b.notes}</p>}
-            <p className="font-semibold tabular-nums">{formatPrice(b.total_cents)}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold tabular-nums">{formatPrice(b.total_cents)}</p>
+              {b.status !== "termine" && b.status !== "cancelled" && !b.paid_at && (
+                <EditBookingItems
+                  bookingId={b.id}
+                  items={b.booking_items}
+                  onSaved={() =>
+                    void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] })
+                  }
+                />
+              )}
+            </div>
             {b.booking_status_history.length > 0 && (
               <div className="border-t border-border/50 pt-2">
                 <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">

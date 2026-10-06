@@ -103,6 +103,12 @@ function MyBookings() {
                   </li>
                 ))}
               </ul>
+              {b.modified_by_reception_at && (
+                <p className="text-xs text-accent">
+                  Modifiée par l'accueil avec votre accord
+                  {b.modification_note ? ` — ${b.modification_note}` : ""}
+                </p>
+              )}
               {b.notes && <p className="text-muted-foreground">Note : {b.notes}</p>}
               <div className="flex items-center justify-between border-t border-border pt-3">
                 <span className="font-semibold tabular-nums">{formatPrice(b.total_cents)}</span>
