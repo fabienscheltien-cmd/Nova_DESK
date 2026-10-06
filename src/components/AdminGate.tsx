@@ -38,7 +38,9 @@ export function AdminGate({ children }: { children: ReactNode }) {
   });
 
   if (status.isLoading) {
-    return <main className="mx-auto max-w-md px-4 py-16 text-sm text-muted-foreground">Chargement…</main>;
+    return (
+      <main className="mx-auto max-w-md px-4 py-16 text-sm text-muted-foreground">Chargement…</main>
+    );
   }
 
   if (status.data?.unlocked) return <>{children}</>;
@@ -63,7 +65,8 @@ export function AdminGate({ children }: { children: ReactNode }) {
         <CardHeader>
           <CardTitle>Accès administrateur</CardTitle>
           <CardDescription>
-            Cet espace est réservé à l'équipe conciergerie. Saisissez le mot de passe administrateur.
+            Cet espace est réservé à l'équipe conciergerie. Saisissez le mot de passe
+            administrateur.
           </CardDescription>
         </CardHeader>
         <CardContent>

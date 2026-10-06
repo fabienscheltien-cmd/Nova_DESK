@@ -54,7 +54,7 @@ function MyBookings() {
   });
 
   const cancel = async (id: string) => {
-    const { error } = await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id);
+    const { error } = await supabase.rpc("cancel_my_booking", { _booking_id: id });
     if (error) {
       toast.error("Annulation impossible.");
       return;

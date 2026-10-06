@@ -1,7 +1,5 @@
 export function formatPrice(cents: number): string {
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
-    cents / 100,
-  );
+  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(cents / 100);
 }
 
 export function formatLeadTime(hours: number): string {
@@ -29,6 +27,5 @@ export const STATUS_FLOW = [
   "termine",
   "cancelled",
 ] as const;
-
 
 export const SLOTS = ["08:00 – 10:00", "10:00 – 12:00", "14:00 – 16:00", "16:00 – 18:00"];

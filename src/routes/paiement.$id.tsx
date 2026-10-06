@@ -64,14 +64,7 @@ function PaymentPage() {
   const pay = async () => {
     if (!b) return;
     setBusy(true);
-    const { error } = await supabase
-      .from("bookings")
-      .update({
-        status: b.status === "delivered" ? "termine" : b.status,
-        paid_at: new Date().toISOString(),
-        payment_method: "en_ligne",
-      })
-      .eq("id", id);
+    const { error } = await supabase.rpc("pay_my_booking", { _booking_id: id });
     setBusy(false);
     if (error) {
       toast.error("Le paiement n'a pas pu être enregistré.");
@@ -83,7 +76,11 @@ function PaymentPage() {
   };
 
   if (booking.isLoading) {
-    return <main className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground">Chargement…</main>;
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground">
+        Chargement…
+      </main>
+    );
   }
 
   if (!b) {
@@ -92,7 +89,9 @@ function PaymentPage() {
 
   const alreadyPaid = paid || Boolean(b.paid_at);
   const invoiceLines = b.booking_items
-    .map((i) => `${i.quantity} x ${i.service_name} — ${formatPrice(i.unit_price_cents * i.quantity)}`)
+    .map(
+      (i) => `${i.quantity} x ${i.service_name} — ${formatPrice(i.unit_price_cents * i.quantity)}`,
+    )
     .join("\n");
   const mailBody = `Facture Nova Zen — dépôt ${b.reference}\n\n${invoiceLines}\n\nTotal payé : ${formatPrice(b.total_cents)}\nDépôt : ${b.dropoff_date} (${b.dropoff_slot})\n\nMerci de votre confiance.\nNova Zen Conciergerie`;
 
@@ -108,9 +107,9 @@ function PaymentPage() {
       <div className="mt-4 flex items-start gap-2 rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm">
         <MapPin className="mt-0.5 size-4 shrink-0 text-accent" />
         <p>
-          Votre réservation est enregistrée : <strong>nous attendons vos affaires à
-          l'accueil</strong>. Nos équipes les réceptionneront et les confieront au collecteur selon
-          le planning de chaque prestation.
+          Votre réservation est enregistrée :{" "}
+          <strong>nous attendons vos affaires à l'accueil</strong>. Nos équipes les réceptionneront
+          et les confieront au collecteur selon le planning de chaque prestation.
         </p>
       </div>
 
@@ -133,9 +132,7 @@ function PaymentPage() {
                 <span>
                   {i.quantity} × {i.service_name}
                 </span>
-                <span className="tabular-nums">
-                  {formatPrice(i.unit_price_cents * i.quantity)}
-                </span>
+                <span className="tabular-nums">{formatPrice(i.unit_price_cents * i.quantity)}</span>
               </li>
             ))}
           </ul>

@@ -326,6 +326,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_replace_booking_items: {
+        Args: { _booking_id: string; _items: Json; _note: string }
+        Returns: undefined
+      }
+      cancel_my_booking: { Args: { _booking_id: string }; Returns: undefined }
+      create_booking: {
+        Args: {
+          _dropoff_date: string
+          _dropoff_slot: string
+          _items: Json
+          _notes: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -334,6 +348,8 @@ export type Database = {
         Returns: boolean
       }
       is_allowed_user: { Args: never; Returns: boolean }
+      owns_booking: { Args: { _booking_id: string }; Returns: boolean }
+      pay_my_booking: { Args: { _booking_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "user"

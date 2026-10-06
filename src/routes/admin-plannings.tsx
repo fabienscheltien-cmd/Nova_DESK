@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Clock, Save } from "lucide-react";
 import { toast } from "sonner";
 
@@ -12,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { adminUpdatePickup } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin-plannings")({
   head: () => ({
@@ -54,6 +56,7 @@ function PlanningsPage() {
   const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  const updatePickup = useServerFn(adminUpdatePickup);
 
   const categories = useQuery({
     queryKey: ["admin-plannings"],
@@ -69,20 +72,17 @@ function PlanningsPage() {
 
   useEffect(() => {
     if (!categories.data) return;
-    setDrafts(
-      Object.fromEntries(categories.data.map((c) => [c.id, c.pickup_info ?? ""])),
-    );
+    setDrafts(Object.fromEntries(categories.data.map((c) => [c.id, c.pickup_info ?? ""])));
   }, [categories.data]);
 
   const save = async (id: string) => {
     setSaving(id);
     const value = (drafts[id] ?? "").trim();
-    const { error } = await supabase
-      .from("service_categories")
-      .update({ pickup_info: value === "" ? null : value })
-      .eq("id", id);
+    const { ok } = await updatePickup({ data: { id, pickup_info: value } }).catch(() => ({
+      ok: false,
+    }));
     setSaving(null);
-    if (error) {
+    if (!ok) {
       toast.error("Enregistrement impossible");
       return;
     }
@@ -126,9 +126,7 @@ function PlanningsPage() {
                     value={drafts[c.id] ?? ""}
                     maxLength={160}
                     placeholder="Ex. Collecte tous les jours à 10h"
-                    onChange={(e) =>
-                      setDrafts((d) => ({ ...d, [c.id]: e.target.value }))
-                    }
+                    onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
                   />
                   <Button
                     onClick={() => void save(c.id)}

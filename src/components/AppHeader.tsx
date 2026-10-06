@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Concierge, NovaZenSymbol } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { useContactEmail } from "@/components/DomainGate";
-import { clearContactEmail } from "@/lib/access";
+import { supabase } from "@/integrations/supabase/client";
 
 export function AppHeader() {
   const email = useContactEmail();
@@ -46,8 +46,8 @@ export function AppHeader() {
               variant="outline"
               size="sm"
               className="max-w-40 truncate sm:max-w-52"
-              onClick={clearContactEmail}
-              title="Changer d'adresse"
+              onClick={() => void supabase.auth.signOut()}
+              title="Se déconnecter"
             >
               {email}
             </Button>

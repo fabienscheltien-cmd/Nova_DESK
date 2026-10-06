@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Download } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { superAdminStats } from "@/lib/admin.functions";
 import { formatPrice, STATUS_LABELS } from "@/lib/format";
 import { isSuperAdmin } from "@/lib/super-admin";
 
@@ -18,9 +19,15 @@ export const Route = createFileRoute("/super-admin")({
   head: () => ({
     meta: [
       { title: "Super Admin – Statistiques NOVA DESK" },
-      { name: "description", content: "Tableau de bord des commandes, montants et clients de la conciergerie." },
+      {
+        name: "description",
+        content: "Tableau de bord des commandes, montants et clients de la conciergerie.",
+      },
       { property: "og:title", content: "Super Admin – Statistiques NOVA DESK" },
-      { property: "og:description", content: "Commandes, chiffre d'affaires et répartition par client et prestation." },
+      {
+        property: "og:description",
+        content: "Commandes, chiffre d'affaires et répartition par client et prestation.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -61,19 +68,10 @@ function Stats() {
   const [from, setFrom] = useState(iso(start));
   const [to, setTo] = useState(iso(today));
 
+  const loadStats = useServerFn(superAdminStats);
   const q = useQuery({
     queryKey: ["super-admin", from, to],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*, booking_items(*, services(category_id, service_categories(name)))")
-        .gte("created_at", `${from}T00:00:00`)
-        .lte("created_at", `${to}T23:59:59`)
-        .neq("status", "cancelled")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => loadStats({ data: { from, to } }),
   });
 
   const s = useMemo(() => {
@@ -82,10 +80,15 @@ function Stats() {
     const byCompany = new Map<string, { n: number; total: number }>();
     const byCat = new Map<string, { n: number; total: number }>();
     const byService = new Map<string, { n: number; total: number }>();
-    let total = 0, online = 0, desk = 0, unpaid = 0;
+    let total = 0,
+      online = 0,
+      desk = 0,
+      unpaid = 0;
     const add = (m: Map<string, { n: number; total: number }>, k: string, n: number, t: number) => {
       const v = m.get(k) ?? { n: 0, total: 0 };
-      v.n += n; v.total += t; m.set(k, v);
+      v.n += n;
+      v.total += t;
+      m.set(k, v);
     };
     for (const b of rows) {
       total += b.total_cents;
@@ -97,7 +100,9 @@ function Stats() {
       add(byCompany, mail.split("@")[1] ?? "inconnu", 1, b.total_cents);
       for (const i of b.booking_items) {
         const t = i.unit_price_cents * i.quantity;
-        const cat = (i as { services?: { service_categories?: { name?: string } | null } | null }).services?.service_categories?.name ?? "Autre";
+        const cat =
+          (i as { services?: { service_categories?: { name?: string } | null } | null }).services
+            ?.service_categories?.name ?? "Autre";
         add(byCat, cat, i.quantity, t);
         add(byService, i.service_name, i.quantity, t);
       }
@@ -106,17 +111,31 @@ function Stats() {
   }, [q.data]);
 
   const exportCsv = () => {
-    const lines = [["Référence", "Date", "Collaborateur", "Statut", "Prestations", "Montant (€)", "Paiement"].join(";")];
+    const lines = [
+      [
+        "Référence",
+        "Date",
+        "Collaborateur",
+        "Statut",
+        "Prestations",
+        "Montant (€)",
+        "Paiement",
+      ].join(";"),
+    ];
     for (const b of s.rows) {
-      lines.push([
-        b.reference,
-        new Date(b.created_at).toLocaleDateString("fr-FR"),
-        b.contact_email ?? "",
-        STATUS_LABELS[b.status] ?? b.status,
-        b.booking_items.map((i) => `${i.quantity}x ${i.service_name}`).join(", "),
-        (b.total_cents / 100).toFixed(2).replace(".", ","),
-        b.paid_at ? (b.payment_method === "accueil" ? "Accueil" : "En ligne") : "Non payé",
-      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";"));
+      lines.push(
+        [
+          b.reference,
+          new Date(b.created_at).toLocaleDateString("fr-FR"),
+          b.contact_email ?? "",
+          STATUS_LABELS[b.status] ?? b.status,
+          b.booking_items.map((i) => `${i.quantity}x ${i.service_name}`).join(", "),
+          (b.total_cents / 100).toFixed(2).replace(".", ","),
+          b.paid_at ? (b.payment_method === "accueil" ? "Accueil" : "En ligne") : "Non payé",
+        ]
+          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .join(";"),
+      );
     }
     const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
@@ -130,7 +149,9 @@ function Stats() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Super Admin</h1>
-          <p className="text-sm text-muted-foreground">Commandes hors annulations sur la période.</p>
+          <p className="text-sm text-muted-foreground">
+            Commandes hors annulations sur la période.
+          </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
@@ -179,7 +200,15 @@ function Kpi({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Breakdown({ title, unit, map }: { title: string; unit: string; map: Map<string, { n: number; total: number }> }) {
+function Breakdown({
+  title,
+  unit,
+  map,
+}: {
+  title: string;
+  unit: string;
+  map: Map<string, { n: number; total: number }>;
+}) {
   const rows = [...map.entries()].sort((a, b) => b[1].total - a[1].total);
   return (
     <Card className="panel border-border/70">

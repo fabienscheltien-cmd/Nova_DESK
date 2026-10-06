@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Trash2 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -14,7 +15,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  adminAddDomain,
+  adminDeleteDomain,
+  adminInviteUser,
+  adminListDomains,
+  adminListUsers,
+  adminSetDomainActive,
+  adminSetUserBanned,
+} from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin-acces")({
   head: () => ({
@@ -23,12 +32,12 @@ export const Route = createFileRoute("/admin-acces")({
       {
         name: "description",
         content:
-          "Gérez les domaines e-mail autorisés et la validation des adresses des collaborateurs de la conciergerie.",
+          "Gérez les domaines e-mail autorisés et les comptes des collaborateurs de la conciergerie.",
       },
       { property: "og:title", content: "Accès collaborateurs – Administration" },
       {
         property: "og:description",
-        content: "Domaines autorisés et validation des adresses e-mail collaborateurs.",
+        content: "Domaines autorisés et comptes collaborateurs.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -55,8 +64,6 @@ const domainSchema = z
 
 const emailSchema = z.string().trim().toLowerCase().email("Adresse e-mail invalide").max(255);
 
-const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 90;
-
 function AccessAdminPage() {
   return (
     <main className="mx-auto w-full max-w-5xl space-y-8 px-4 py-8 sm:px-6">
@@ -64,7 +71,7 @@ function AccessAdminPage() {
         <div>
           <h1 className="text-2xl font-semibold sm:text-3xl">Accès collaborateurs</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Domaines e-mail autorisés et validation des adresses (valables 3 mois).
+            Domaines e-mail autorisés et comptes ouverts par lien de connexion.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -76,7 +83,7 @@ function AccessAdminPage() {
       </header>
 
       <DomainsSection />
-      <VerificationsSection />
+      <UsersSection />
     </main>
   );
 }
@@ -86,13 +93,13 @@ function DomainsSection() {
   const [domain, setDomain] = useState("");
   const [label, setLabel] = useState("");
 
+  const listDomains = useServerFn(adminListDomains);
+  const addDomain = useServerFn(adminAddDomain);
+  const setDomainActive = useServerFn(adminSetDomainActive);
+  const deleteDomain = useServerFn(adminDeleteDomain);
   const domains = useQuery({
     queryKey: ["admin-domains"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("allowed_domains").select("*").order("domain");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => listDomains(),
   });
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin-domains"] });
@@ -103,10 +110,10 @@ function DomainsSection() {
       toast.error(parsed.error.issues[0]?.message ?? "Domaine invalide");
       return;
     }
-    const { error } = await supabase
-      .from("allowed_domains")
-      .insert({ domain: parsed.data, label: label.trim() || null });
-    if (error) {
+    const { ok } = await addDomain({ data: { domain: parsed.data, label: label.trim() } }).catch(
+      () => ({ ok: false }),
+    );
+    if (!ok) {
       toast.error("Ce domaine existe déjà ou n'a pas pu être ajouté.");
       return;
     }
@@ -117,12 +124,14 @@ function DomainsSection() {
   };
 
   const toggle = async (id: string, active: boolean) => {
-    await supabase.from("allowed_domains").update({ active }).eq("id", id);
+    const { ok } = await setDomainActive({ data: { id, active } }).catch(() => ({ ok: false }));
+    if (!ok) toast.error("Mise à jour impossible.");
     void refresh();
   };
 
   const remove = async (id: string) => {
-    await supabase.from("allowed_domains").delete().eq("id", id);
+    const { ok } = await deleteDomain({ data: { id } }).catch(() => ({ ok: false }));
+    if (!ok) toast.error("Suppression impossible.");
     void refresh();
   };
 
@@ -132,8 +141,8 @@ function DomainsSection() {
         <CardHeader>
           <CardTitle className="text-base">Autoriser un domaine e-mail</CardTitle>
           <CardDescription>
-            Toute personne dont l'adresse se termine par ce domaine pourra demander un lien de
-            validation.
+            Toute personne dont l'adresse se termine par ce domaine pourra recevoir un lien de
+            connexion.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-3">
@@ -197,21 +206,6 @@ function DomainsSection() {
   );
 }
 
-type VerificationState = "valide" | "attente" | "expire";
-
-function stateOf(row: { verified_at: string | null; expires_at: string | null }): VerificationState {
-  const expired = row.expires_at ? new Date(row.expires_at).getTime() < Date.now() : false;
-  if (row.verified_at && !expired) return "valide";
-  if (!row.verified_at && !expired) return "attente";
-  return "expire";
-}
-
-const STATE_LABEL: Record<VerificationState, string> = {
-  valide: "Validée",
-  attente: "En attente",
-  expire: "Expirée",
-};
-
 function formatDate(value: string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("fr-FR", {
@@ -221,38 +215,26 @@ function formatDate(value: string | null) {
   });
 }
 
-function VerificationsSection() {
+function UsersSection() {
   const queryClient = useQueryClient();
+  const listUsers = useServerFn(adminListUsers);
+  const inviteUser = useServerFn(adminInviteUser);
+  const setBanned = useServerFn(adminSetUserBanned);
   const [search, setSearch] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const verifications = useQuery({
-    queryKey: ["admin-verifications"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("email_verifications")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+  const users = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: () => listUsers(),
   });
 
-  const domains = useQuery({
-    queryKey: ["admin-domains"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("allowed_domains").select("*").order("domain");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin-verifications"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin-users"] });
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (verifications.data ?? []).filter((r) => !q || r.email.toLowerCase().includes(q));
-  }, [verifications.data, search]);
+    return (users.data ?? []).filter((r) => !q || r.email.toLowerCase().includes(q));
+  }, [users.data, search]);
 
   const invite = async () => {
     const parsed = emailSchema.safeParse(newEmail);
@@ -260,65 +242,29 @@ function VerificationsSection() {
       toast.error(parsed.error.issues[0]?.message ?? "Adresse invalide");
       return;
     }
-    const email = parsed.data;
-    const domain = email.split("@")[1] ?? "";
-    const allowed = (domains.data ?? []).some((d) => d.active && d.domain === domain);
-    if (!allowed) {
-      toast.error(`Le domaine @${domain} n'est pas autorisé.`);
-      return;
-    }
-    const token = crypto.randomUUID();
-    const { error } = await supabase.from("email_verifications").insert({
-      email,
-      token,
-      expires_at: new Date(Date.now() + THREE_MONTHS_MS).toISOString(),
-    });
-    if (error) {
-      toast.error("Impossible de créer l'invitation.");
+    setBusy(true);
+    const res = await inviteUser({ data: { email: parsed.data } }).catch(() => null);
+    setBusy(false);
+    if (!res?.ok) {
+      toast.error(
+        res?.reason === "domain"
+          ? `Le domaine @${parsed.data.split("@")[1]} n'est pas autorisé.`
+          : "L'e-mail n'a pas pu être envoyé.",
+      );
       return;
     }
     setNewEmail("");
-    await copyLink(token);
-    toast.success("Lien de validation créé et copié.");
+    toast.success(`Lien de connexion envoyé à ${parsed.data}.`);
     void refresh();
   };
 
-  const copyLink = async (token: string) => {
-    const link = `${window.location.origin}/verifier/${token}`;
-    try {
-      await navigator.clipboard.writeText(link);
-      toast.success("Lien de validation copié.");
-    } catch {
-      toast.info(link);
-    }
-  };
-
-  const validateNow = async (id: string) => {
-    const { error } = await supabase
-      .from("email_verifications")
-      .update({
-        verified_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + THREE_MONTHS_MS).toISOString(),
-      })
-      .eq("id", id);
-    if (error) {
-      toast.error("Validation impossible.");
+  const toggleBan = async (id: string, banned: boolean) => {
+    const { ok } = await setBanned({ data: { id, banned } }).catch(() => ({ ok: false }));
+    if (!ok) {
+      toast.error("Mise à jour impossible.");
       return;
     }
-    toast.success("Adresse validée pour 3 mois.");
-    void refresh();
-  };
-
-  const revoke = async (id: string) => {
-    const { error } = await supabase
-      .from("email_verifications")
-      .update({ verified_at: null, expires_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) {
-      toast.error("Révocation impossible.");
-      return;
-    }
-    toast.success("Accès révoqué.");
+    toast.success(banned ? "Accès révoqué." : "Accès rétabli.");
     void refresh();
   };
 
@@ -328,8 +274,8 @@ function VerificationsSection() {
         <CardHeader>
           <CardTitle className="text-base">Inviter un collaborateur</CardTitle>
           <CardDescription>
-            Génère un lien de validation à transmettre au collaborateur (adresse valable 3 mois une
-            fois validée).
+            Envoie par e-mail un lien de connexion au collaborateur. Il accède à son espace en
+            cliquant dessus.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-3">
@@ -344,7 +290,9 @@ function VerificationsSection() {
             />
           </div>
           <div className="flex items-end">
-            <Button onClick={invite}>Générer le lien</Button>
+            <Button onClick={invite} disabled={busy}>
+              <Send className="size-4" /> Envoyer le lien
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -352,8 +300,8 @@ function VerificationsSection() {
       <Card className="panel border-border/70">
         <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-base">Adresses collaborateurs</CardTitle>
-            <CardDescription>Suivi des validations et des accès en cours.</CardDescription>
+            <CardTitle className="text-base">Comptes collaborateurs</CardTitle>
+            <CardDescription>Comptes ouverts par lien de connexion.</CardDescription>
           </div>
           <Input
             className="sm:max-w-64"
@@ -364,54 +312,29 @@ function VerificationsSection() {
           />
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {rows.length === 0 && (
-            <p className="text-muted-foreground">Aucune adresse enregistrée.</p>
-          )}
-          {rows.map((r) => {
-            const state = stateOf(r);
-            return (
-              <div
-                key={r.id}
-                className="flex flex-col gap-3 rounded-lg border border-border/70 p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium break-all">{r.email}</span>
-                    <Badge
-                      variant={
-                        state === "valide"
-                          ? "default"
-                          : state === "attente"
-                            ? "outline"
-                            : "secondary"
-                      }
-                    >
-                      {STATE_LABEL[state]}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Demandée le {formatDate(r.created_at)} · Validée le {formatDate(r.verified_at)} ·
-                    Expire le {formatDate(r.expires_at)}
-                  </p>
-                </div>
+          {rows.length === 0 && <p className="text-muted-foreground">Aucun compte.</p>}
+          {rows.map((r) => (
+            <div
+              key={r.id}
+              className="flex flex-col gap-3 rounded-lg border border-border/70 p-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => copyLink(r.token)}>
-                    <Copy className="size-4" /> Lien
-                  </Button>
-                  {state !== "valide" && (
-                    <Button size="sm" onClick={() => validateNow(r.id)}>
-                      Valider
-                    </Button>
-                  )}
-                  {state === "valide" && (
-                    <Button variant="outline" size="sm" onClick={() => revoke(r.id)}>
-                      Révoquer
-                    </Button>
-                  )}
+                  <span className="font-medium break-all">{r.email}</span>
+                  <Badge variant={r.banned ? "secondary" : "default"}>
+                    {r.banned ? "Révoqué" : "Actif"}
+                  </Badge>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Créé le {formatDate(r.created_at)} · Dernière connexion{" "}
+                  {formatDate(r.last_sign_in_at)}
+                </p>
               </div>
-            );
-          })}
+              <Button variant="outline" size="sm" onClick={() => void toggleBan(r.id, !r.banned)}>
+                {r.banned ? "Rétablir" : "Révoquer"}
+              </Button>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </section>

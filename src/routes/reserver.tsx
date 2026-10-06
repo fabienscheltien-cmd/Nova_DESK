@@ -8,18 +8,14 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { AppHeader } from "@/components/AppHeader";
-import { DomainGate, useContactEmail } from "@/components/DomainGate";
+import { DomainGate } from "@/components/DomainGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -69,7 +65,6 @@ const detailsSchema = z.object({
 
 function BookingPage() {
   const navigate = useNavigate();
-  const contactEmail = useContactEmail();
   const [cart, setCart] = useState<Record<string, number>>({});
   const [date, setDate] = useState<Date | undefined>();
   const [slot, setSlot] = useState(SLOTS[0]!);
@@ -89,7 +84,7 @@ function BookingPage() {
     },
   });
 
-  const services = catalogue.data?.services ?? [];
+  const services = useMemo(() => catalogue.data?.services ?? [], [catalogue.data]);
 
   const lines = useMemo(
     () =>
@@ -122,42 +117,22 @@ function BookingPage() {
     }
 
     setBusy(true);
-    const { data: booking, error } = await supabase
-      .from("bookings")
-      .insert({
-        dropoff_date: parsed.data.dropoff_date,
-        dropoff_slot: parsed.data.dropoff_slot,
-        notes: parsed.data.notes || null,
-        total_cents: total,
-        contact_email: contactEmail,
-      })
-      .select("id")
-      .single();
+    // Prix et total recalculés en base à partir du catalogue.
+    const { data: bookingId, error } = await supabase.rpc("create_booking", {
+      _dropoff_date: parsed.data.dropoff_date,
+      _dropoff_slot: parsed.data.dropoff_slot,
+      _notes: parsed.data.notes ?? "",
+      _items: lines.map((l) => ({ service_id: l.service.id, quantity: l.qty })),
+    });
+    setBusy(false);
 
-    if (error || !booking) {
-      setBusy(false);
+    if (error || !bookingId) {
       toast.error("La réservation n'a pas pu être enregistrée.");
       return;
     }
 
-    const { error: itemsError } = await supabase.from("booking_items").insert(
-      lines.map((l) => ({
-        booking_id: booking.id,
-        service_id: l.service.id,
-        service_name: l.service.name,
-        quantity: l.qty,
-        unit_price_cents: l.service.price_cents,
-      })),
-    );
-    setBusy(false);
-
-    if (itemsError) {
-      toast.error("Les prestations n'ont pas pu être enregistrées.");
-      return;
-    }
-
     toast.success("Réservation enregistrée. Nous attendons vos affaires à l'accueil.");
-    void navigate({ to: "/paiement/$id", params: { id: booking.id } });
+    void navigate({ to: "/paiement/$id", params: { id: bookingId } });
   };
 
   return (
@@ -251,9 +226,7 @@ function BookingPage() {
                   <span>
                     {l.qty} × {l.service.name}
                   </span>
-                  <span className="tabular-nums">
-                    {formatPrice(l.service.price_cents * l.qty)}
-                  </span>
+                  <span className="tabular-nums">{formatPrice(l.service.price_cents * l.qty)}</span>
                 </li>
               ))}
             </ul>
@@ -275,11 +248,7 @@ function BookingPage() {
                     )}
                   >
                     <CalendarIcon className="mr-2 size-4" />
-                    {date ? (
-                      format(date, "PPP", { locale: fr })
-                    ) : (
-                      <span>Choisir une date</span>
-                    )}
+                    {date ? format(date, "PPP", { locale: fr }) : <span>Choisir une date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

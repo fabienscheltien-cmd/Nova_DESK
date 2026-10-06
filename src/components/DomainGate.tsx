@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { MailCheck } from "lucide-react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -7,51 +8,54 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  domainOf,
-  expiryFromNow,
-  formatExpiry,
-  getContactEmail,
-  setContactEmail,
-  VALIDITY_MONTHS,
-} from "@/lib/access";
+import { requestLoginLink } from "@/lib/auth.functions";
 
-const emailSchema = z.string().trim().email("Adresse e-mail invalide");
+const emailSchema = z.string().trim().toLowerCase().email("Adresse e-mail invalide").max(255);
+
+type AuthState = { ready: boolean; email: string | null };
+
+/** Session Supabase du collaborateur (ouverte par le lien magique reçu par e-mail). */
+export function useAuth(): AuthState {
+  const [state, setState] = useState<AuthState>({ ready: false, email: null });
+  useEffect(() => {
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) setState({ ready: true, email: data.session?.user.email ?? null });
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setState({ ready: true, email: session?.user.email ?? null });
+    });
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+  return state;
+}
 
 export function useContactEmail(): string | null {
-  const [email, setEmail] = useState<string | null>(null);
-  useEffect(() => {
-    const sync = () => setEmail(getContactEmail());
-    sync();
-    window.addEventListener("novazen-access", sync);
-    return () => window.removeEventListener("novazen-access", sync);
-  }, []);
-  return email;
+  return useAuth().email;
+}
+
+/** Erreur renvoyée par Supabase dans l'URL quand le lien est expiré ou déjà utilisé. */
+function linkErrorFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  if (!params.get("error") && !params.get("error_code")) return null;
+  return "Ce lien de connexion est expiré ou a déjà été utilisé. Demandez-en un nouveau.";
 }
 
 export function DomainGate({ children }: { children: ReactNode }) {
-  const [hydrated, setHydrated] = useState(false);
-  const email = useContactEmail();
+  const { ready, email } = useAuth();
+  const sendLink = useServerFn(requestLoginLink);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [link, setLink] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
-  useEffect(() => setHydrated(true), []);
+  useEffect(() => setError(linkErrorFromUrl()), []);
 
-  const domains = useQuery({
-    queryKey: ["allowed-domains"],
-    queryFn: async () => {
-      const { data, error: err } = await supabase
-        .from("allowed_domains")
-        .select("domain,label")
-        .eq("active", true);
-      if (err) throw err;
-      return data;
-    },
-  });
-
-  if (!hydrated) return null;
+  if (!ready) return null;
   if (email) return <>{children}</>;
 
   const submit = async (e: React.FormEvent) => {
@@ -61,81 +65,45 @@ export function DomainGate({ children }: { children: ReactNode }) {
       setError(parsed.error.issues[0]?.message ?? "Adresse invalide");
       return;
     }
-    const address = parsed.data.toLowerCase();
-    const list = (domains.data ?? []).map((d) => d.domain.toLowerCase());
-    if (!list.includes(domainOf(address))) {
-      setError("Ce domaine n'est pas autorisé. Utilisez votre e-mail professionnel.");
-      return;
-    }
-
     setBusy(true);
     setError(null);
-
-    // Adresse déjà validée et encore dans sa période de validité ?
-    const { data: existing } = await supabase
-      .from("email_verifications")
-      .select("email,expires_at")
-      .eq("email", address)
-      .not("verified_at", "is", null)
-      .gt("expires_at", new Date().toISOString())
-      .order("expires_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (existing?.expires_at) {
+    try {
+      const res = await sendLink({
+        data: { email: parsed.data, next: window.location.pathname },
+      });
+      if (res.ok) {
+        setSentTo(parsed.data);
+      } else if (res.reason === "domain") {
+        setError("Ce domaine n'est pas autorisé. Utilisez votre e-mail professionnel.");
+      } else {
+        setError("L'e-mail n'a pas pu être envoyé. Réessayez dans quelques minutes.");
+      }
+    } catch {
+      setError("L'e-mail n'a pas pu être envoyé. Réessayez dans quelques minutes.");
+    } finally {
       setBusy(false);
-      setContactEmail(address, existing.expires_at);
-      return;
     }
-
-    const token = crypto.randomUUID().replace(/-/g, "");
-    const { error: insErr } = await supabase.from("email_verifications").insert({
-      email: address,
-      token,
-      expires_at: expiryFromNow(),
-    });
-    setBusy(false);
-
-    if (insErr) {
-      setError("Impossible de générer le lien de validation. Réessayez.");
-      return;
-    }
-    setLink(`${window.location.origin}/verifier/${token}`);
   };
 
-  if (link) {
+  if (sentTo) {
     return (
       <main className="mx-auto flex max-w-md flex-col justify-center px-4 py-16">
         <Card className="panel border-border/70">
           <CardHeader>
-            <CardTitle>Validez votre adresse</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <MailCheck className="size-5" /> Vérifiez votre boîte mail
+            </CardTitle>
             <CardDescription>
-              Un e-mail de validation a été généré pour {value.trim().toLowerCase()}. Cliquez sur le
-              lien ci-dessous pour confirmer que cette adresse est bien la vôtre.
+              Un lien de connexion vient d'être envoyé à <strong>{sentTo}</strong>. Cliquez dessus
+              pour accéder à votre espace. Pensez à regarder dans les indésirables.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-md border border-border/70 bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">Lien de validation (simulation d'e-mail)</p>
-              <a
-                href={link}
-                className="mt-1 block break-all text-sm font-medium text-primary underline"
-              >
-                {link}
-              </a>
-            </div>
-            <Button asChild className="w-full">
-              <a href={link}>Valider mon adresse</a>
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Une fois validée, votre adresse reste enregistrée {VALIDITY_MONTHS} mois (jusqu'au{" "}
-              {formatExpiry(expiryFromNow())}).
-            </p>
+          <CardContent>
             <Button
               variant="ghost"
               className="w-full"
               onClick={() => {
-                setLink(null);
+                setSentTo(null);
                 setValue("");
               }}
             >
@@ -153,8 +121,8 @@ export function DomainGate({ children }: { children: ReactNode }) {
         <CardHeader>
           <CardTitle>Identification</CardTitle>
           <CardDescription>
-            Entrez votre e-mail professionnel : un lien de validation vous sera généré pour
-            confirmer votre adresse.
+            Entrez votre e-mail professionnel : vous recevrez un lien de connexion pour accéder à
+            votre espace.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -175,17 +143,11 @@ export function DomainGate({ children }: { children: ReactNode }) {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={busy}>
-              {busy ? "Génération du lien…" : "Recevoir le lien de validation"}
+              {busy ? "Envoi du lien…" : "Recevoir mon lien de connexion"}
             </Button>
-            {domains.data && domains.data.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Domaines autorisés : {domains.data.map((d) => d.domain).join(", ")}
-              </p>
-            )}
           </form>
         </CardContent>
       </Card>
     </main>
   );
 }
-

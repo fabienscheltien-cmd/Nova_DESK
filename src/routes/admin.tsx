@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { CheckCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -24,7 +25,20 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  adminAddDomain,
+  adminCreateCategory,
+  adminCreateService,
+  adminDeleteDomain,
+  adminDeleteService,
+  adminListBookings,
+  adminListCatalogue,
+  adminListDomains,
+  adminSetDomainActive,
+  adminSetServiceActive,
+  adminSetStatus,
+  adminTogglePayment,
+} from "@/lib/admin.functions";
 import { formatLeadTime, formatPrice, STATUS_FLOW, STATUS_LABELS } from "@/lib/format";
 
 export const Route = createFileRoute("/admin")({
@@ -59,31 +73,21 @@ export const Route = createFileRoute("/admin")({
 
 const STATUSES = [...STATUS_FLOW];
 
-function CategoryForm({ count, onDone }: { count: number; onDone: () => void }) {
+function CategoryForm({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [pickup, setPickup] = useState("");
+  const createCategory = useServerFn(adminCreateCategory);
   const add = async () => {
     const n = name.trim();
     if (n.length < 2) {
       toast.error("Nom de catégorie trop court");
       return;
     }
-    const slug =
-      n
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "") || `cat-${Date.now()}`;
-    const { error } = await supabase.from("service_categories").insert({
-      name: n.slice(0, 80),
-      slug,
-      description: description.trim() || null,
-      pickup_info: pickup.trim() || null,
-      sort_order: count + 1,
-    });
-    if (error) {
+    const { ok } = await createCategory({
+      data: { name: n, description: description.trim(), pickup_info: pickup.trim() },
+    }).catch(() => ({ ok: false }));
+    if (!ok) {
       toast.error("Catégorie non créée (nom déjà utilisé ?).");
       return;
     }
@@ -97,20 +101,39 @@ function CategoryForm({ count, onDone }: { count: number; onDone: () => void }) 
     <Card className="panel border-border/70">
       <CardHeader>
         <CardTitle className="text-base">Créer une catégorie</CardTitle>
-        <CardDescription>Elle apparaîtra comme nouvel onglet sur la page de réservation.</CardDescription>
+        <CardDescription>
+          Elle apparaîtra comme nouvel onglet sur la page de réservation.
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="cat-name">Nom</Label>
-          <Input id="cat-name" value={name} maxLength={80} placeholder="Soins cuir" onChange={(e) => setName(e.target.value)} />
+          <Input
+            id="cat-name"
+            value={name}
+            maxLength={80}
+            placeholder="Soins cuir"
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="cat-desc">Description</Label>
-          <Input id="cat-desc" value={description} maxLength={200} onChange={(e) => setDescription(e.target.value)} />
+          <Input
+            id="cat-desc"
+            value={description}
+            maxLength={200}
+            onChange={(e) => setDescription(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="cat-pickup">Planning de collecte</Label>
-          <Input id="cat-pickup" value={pickup} maxLength={160} placeholder="Collecte le lundi à 10h" onChange={(e) => setPickup(e.target.value)} />
+          <Input
+            id="cat-pickup"
+            value={pickup}
+            maxLength={160}
+            placeholder="Collecte le lundi à 10h"
+            onChange={(e) => setPickup(e.target.value)}
+          />
         </div>
         <div className="sm:col-span-3">
           <Button onClick={add}>Créer la catégorie</Button>
@@ -164,75 +187,41 @@ function AdminPage() {
 function BookingsAdmin() {
   const queryClient = useQueryClient();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const listBookings = useServerFn(adminListBookings);
+  const updateStatus = useServerFn(adminSetStatus);
+  const updatePayment = useServerFn(adminTogglePayment);
   const bookings = useQuery({
     queryKey: ["admin-bookings"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*, booking_items(*), booking_status_history(*)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => listBookings(),
   });
 
-  const setStatus = async (
-    id: string,
-    status: string,
-    previousStatus: string,
-    paidAt: string | null,
-  ): Promise<boolean> => {
-    // Une demande retirée et payée se clôture automatiquement.
-    const target = status === "delivered" && paidAt ? "termine" : status;
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status: target as never })
-      .eq("id", id);
-    if (error) {
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+
+  const setStatus = async (id: string, status: string) => {
+    setBusyId(id);
+    try {
+      const res = await updateStatus({ data: { id, status: status as never } });
+      if (res.autoClosed) toast.success("Dépôt retiré et payé : clôturé automatiquement.");
+    } catch {
       toast.error("Mise à jour impossible.");
-      return false;
+    } finally {
+      setBusyId(null);
+      void refresh();
     }
-    const { error: histError } = await supabase.from("booking_status_history").insert({
-      booking_id: id,
-      from_status: previousStatus as never,
-      to_status: target as never,
-    });
-    if (histError) toast.error("Historique non enregistré.");
-    void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
-    if (target === "termine" && status === "delivered") {
-      toast.success("Dépôt retiré et payé : clôturé automatiquement.");
-    }
-    return true;
   };
 
-  const togglePayment = async (b: {
-    id: string;
-    status: string;
-    paid_at: string | null;
-    reference: string;
-  }) => {
+  const togglePayment = async (b: { id: string; reference: string }) => {
     setBusyId(b.id);
-    const paying = !b.paid_at;
-    const { error } = await supabase
-      .from("bookings")
-      .update({
-        paid_at: paying ? new Date().toISOString() : null,
-        payment_method: paying ? "accueil" : null,
-      })
-      .eq("id", b.id);
-    if (error) {
-      setBusyId(null);
+    try {
+      const res = await updatePayment({ data: { id: b.id } });
+      if (res.closed) toast.success(`Dépôt ${b.reference} payé et clôturé.`);
+      else toast.success(res.paying ? "Paiement à l'accueil enregistré." : "Paiement annulé.");
+    } catch {
       toast.error("Paiement non enregistré.");
-      return;
+    } finally {
+      setBusyId(null);
+      void refresh();
     }
-    if (paying && b.status === "delivered") {
-      await setStatus(b.id, "termine", b.status, null);
-      toast.success(`Dépôt ${b.reference} payé et clôturé.`);
-    } else {
-      void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
-      toast.success(paying ? "Paiement à l'accueil enregistré." : "Paiement annulé.");
-    }
-    setBusyId(null);
   };
 
   const NEXT_STEP: Record<string, { to: string; label: string }> = {
@@ -272,9 +261,7 @@ function BookingsAdmin() {
                 <Button
                   size="sm"
                   disabled={busyId === b.id}
-                  onClick={() =>
-                    setStatus(b.id, NEXT_STEP[b.status]!.to, b.status, b.paid_at)
-                  }
+                  onClick={() => setStatus(b.id, NEXT_STEP[b.status]!.to)}
                 >
                   <CheckCheck className="size-4" />
                   {NEXT_STEP[b.status]!.label}
@@ -288,10 +275,7 @@ function BookingsAdmin() {
               >
                 {b.paid_at ? "Annuler le paiement" : "Payé à l'accueil"}
               </Button>
-              <Select
-                value={b.status}
-                onValueChange={(v) => setStatus(b.id, v, b.status, b.paid_at)}
-              >
+              <Select value={b.status} onValueChange={(v) => setStatus(b.id, v)}>
                 <SelectTrigger className="w-44">
                   <SelectValue />
                 </SelectTrigger>
@@ -333,9 +317,7 @@ function BookingsAdmin() {
                 <EditBookingItems
                   bookingId={b.id}
                   items={b.booking_items}
-                  onSaved={() =>
-                    void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] })
-                  }
+                  onSaved={() => void refresh()}
                 />
               )}
             </div>
@@ -380,17 +362,13 @@ function CatalogueAdmin() {
   const [price, setPrice] = useState("");
   const [lead, setLead] = useState("48");
 
+  const listCatalogue = useServerFn(adminListCatalogue);
+  const createService = useServerFn(adminCreateService);
+  const setServiceActive = useServerFn(adminSetServiceActive);
+  const deleteService = useServerFn(adminDeleteService);
   const data = useQuery({
     queryKey: ["admin-catalogue"],
-    queryFn: async () => {
-      const [cats, svcs] = await Promise.all([
-        supabase.from("service_categories").select("*").order("sort_order"),
-        supabase.from("services").select("*").order("sort_order"),
-      ]);
-      if (cats.error) throw cats.error;
-      if (svcs.error) throw svcs.error;
-      return { categories: cats.data, services: svcs.data };
-    },
+    queryFn: () => listCatalogue(),
   });
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin-catalogue"] });
@@ -407,10 +385,8 @@ function CatalogueAdmin() {
       toast.error(parsed.error.issues[0]?.message ?? "Champs invalides");
       return;
     }
-    const { error } = await supabase
-      .from("services")
-      .insert({ ...parsed.data, description: parsed.data.description ?? null });
-    if (error) {
+    const { ok } = await createService({ data: parsed.data }).catch(() => ({ ok: false }));
+    if (!ok) {
       toast.error("Ajout impossible.");
       return;
     }
@@ -422,13 +398,14 @@ function CatalogueAdmin() {
   };
 
   const toggle = async (id: string, active: boolean) => {
-    await supabase.from("services").update({ active }).eq("id", id);
+    const { ok } = await setServiceActive({ data: { id, active } }).catch(() => ({ ok: false }));
+    if (!ok) toast.error("Mise à jour impossible.");
     void refresh();
   };
 
   const remove = async (id: string) => {
-    const { error } = await supabase.from("services").delete().eq("id", id);
-    if (error) {
+    const { ok } = await deleteService({ data: { id } }).catch(() => ({ ok: false }));
+    if (!ok) {
       toast.error("Suppression impossible (prestation déjà réservée). Désactivez-la plutôt.");
       return;
     }
@@ -437,10 +414,7 @@ function CatalogueAdmin() {
 
   return (
     <div className="space-y-6">
-      <CategoryForm
-        count={data.data?.categories.length ?? 0}
-        onDone={() => void refresh()}
-      />
+      <CategoryForm onDone={() => void refresh()} />
       <Card className="panel border-border/70">
         <CardHeader>
           <CardTitle className="text-base">Ajouter une prestation</CardTitle>
@@ -559,16 +533,13 @@ function DomainsAdmin() {
   const [domain, setDomain] = useState("");
   const [label, setLabel] = useState("");
 
+  const listDomains = useServerFn(adminListDomains);
+  const addDomain = useServerFn(adminAddDomain);
+  const setDomainActive = useServerFn(adminSetDomainActive);
+  const deleteDomain = useServerFn(adminDeleteDomain);
   const domains = useQuery({
     queryKey: ["admin-domains"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("allowed_domains")
-        .select("*")
-        .order("domain");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => listDomains(),
   });
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin-domains"] });
@@ -579,10 +550,10 @@ function DomainsAdmin() {
       toast.error(parsed.error.issues[0]?.message ?? "Domaine invalide");
       return;
     }
-    const { error } = await supabase
-      .from("allowed_domains")
-      .insert({ domain: parsed.data, label: label.trim() || null });
-    if (error) {
+    const { ok } = await addDomain({ data: { domain: parsed.data, label: label.trim() } }).catch(
+      () => ({ ok: false }),
+    );
+    if (!ok) {
       toast.error("Ce domaine existe déjà ou n'a pas pu être ajouté.");
       return;
     }
@@ -593,12 +564,14 @@ function DomainsAdmin() {
   };
 
   const toggle = async (id: string, active: boolean) => {
-    await supabase.from("allowed_domains").update({ active }).eq("id", id);
+    const { ok } = await setDomainActive({ data: { id, active } }).catch(() => ({ ok: false }));
+    if (!ok) toast.error("Mise à jour impossible.");
     void refresh();
   };
 
   const remove = async (id: string) => {
-    await supabase.from("allowed_domains").delete().eq("id", id);
+    const { ok } = await deleteDomain({ data: { id } }).catch(() => ({ ok: false }));
+    if (!ok) toast.error("Suppression impossible.");
     void refresh();
   };
 
