@@ -2,7 +2,7 @@ const STORAGE_KEY = "novazen.contact_email";
 
 export const VALIDITY_MONTHS = 3;
 
-type Access = { email: string; expiresAt: string };
+type Access = { email: string; expiresAt: string; token: string };
 
 function read(): Access | null {
   if (typeof window === "undefined") return null;
@@ -10,7 +10,10 @@ function read(): Access | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Access;
-    if (!parsed?.email || !parsed?.expiresAt) return null;
+    if (!parsed?.email || !parsed?.expiresAt || !parsed?.token) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
     if (new Date(parsed.expiresAt).getTime() < Date.now()) {
       window.localStorage.removeItem(STORAGE_KEY);
       return null;
@@ -35,8 +38,12 @@ export function getAccessExpiry(): string | null {
   return read()?.expiresAt ?? null;
 }
 
-export function setContactEmail(email: string, expiresAt: string): void {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ email, expiresAt }));
+export function getAccessToken(): string | null {
+  return read()?.token ?? null;
+}
+
+export function setContactEmail(email: string, expiresAt: string, token: string): void {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ email, expiresAt, token }));
   window.dispatchEvent(new Event("novazen-access"));
 }
 

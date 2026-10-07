@@ -4,8 +4,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
-import { expiryFromNow, formatExpiry, setContactEmail, VALIDITY_MONTHS } from "@/lib/access";
+import { verifyAccess } from "@/lib/data.functions";
+import { formatExpiry, setContactEmail, VALIDITY_MONTHS } from "@/lib/access";
 
 export const Route = createFileRoute("/verifier/$token")({
   head: () => ({
@@ -37,34 +37,17 @@ function VerifyPage() {
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      const { data, error } = await supabase
-        .from("email_verifications")
-        .select("id,email,verified_at,expires_at")
-        .eq("token", token)
-        .maybeSingle();
-
+      const res = await verifyAccess({ data: { token } }).catch(() => null);
       if (cancelled) return;
-      if (error || !data) {
+      if (!res || !res.ok) {
         setState("error");
         return;
       }
-
-      let expiresAt = data.expires_at;
-      if (!data.verified_at || !expiresAt || new Date(expiresAt).getTime() < Date.now()) {
-        expiresAt = expiryFromNow();
-        const { error: upErr } = await supabase
-          .from("email_verifications")
-          .update({ verified_at: new Date().toISOString(), expires_at: expiresAt })
-          .eq("id", data.id);
-        if (upErr) {
-          setState("error");
-          return;
-        }
-      }
-
+      const data = { email: res.email };
+      const expiresAt = res.expiresAt;
       setEmail(data.email);
       setExpiry(expiresAt);
-      setContactEmail(data.email, expiresAt);
+      setContactEmail(data.email, expiresAt, token);
       setState("ok");
     };
     void run();

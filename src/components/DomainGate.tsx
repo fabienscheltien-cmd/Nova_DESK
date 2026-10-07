@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { getActiveDomains, requestAccess } from "@/lib/data.functions";
 import {
   domainOf,
   expiryFromNow,
@@ -42,12 +42,7 @@ export function DomainGate({ children }: { children: ReactNode }) {
   const domains = useQuery({
     queryKey: ["allowed-domains"],
     queryFn: async () => {
-      const { data, error: err } = await supabase
-        .from("allowed_domains")
-        .select("domain,label")
-        .eq("active", true);
-      if (err) throw err;
-      return data;
+      return getActiveDomains();
     },
   });
 
@@ -71,35 +66,21 @@ export function DomainGate({ children }: { children: ReactNode }) {
     setBusy(true);
     setError(null);
 
-    // Adresse déjà validée et encore dans sa période de validité ?
-    const { data: existing } = await supabase
-      .from("email_verifications")
-      .select("email,expires_at")
-      .eq("email", address)
-      .not("verified_at", "is", null)
-      .gt("expires_at", new Date().toISOString())
-      .order("expires_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (existing?.expires_at) {
-      setBusy(false);
-      setContactEmail(address, existing.expires_at);
-      return;
-    }
-
-    const token = crypto.randomUUID().replace(/-/g, "");
-    const { error: insErr } = await supabase.from("email_verifications").insert({
-      email: address,
-      token,
-      expires_at: expiryFromNow(),
-    });
+    const res = await requestAccess({ data: { email: address } }).catch(() => null);
     setBusy(false);
-
-    if (insErr) {
+    if (!res) {
       setError("Impossible de générer le lien de validation. Réessayez.");
       return;
     }
+    if (res.status === "denied") {
+      setError("Ce domaine n'est pas autorisé. Utilisez votre e-mail professionnel.");
+      return;
+    }
+    if (res.status === "granted") {
+      setContactEmail(res.email, res.expiresAt, res.token);
+      return;
+    }
+    const token = res.token;
     setLink(`${window.location.origin}/verifier/${token}`);
   };
 

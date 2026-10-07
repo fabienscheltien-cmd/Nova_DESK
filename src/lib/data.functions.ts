@@ -570,6 +570,7 @@ export const adminStats = createServerFn({ method: "POST" })
       .select("*, booking_items(*, services(category_id, service_categories(name)))")
       .gte("created_at", `${data.from}T00:00:00`)
       .lte("created_at", `${data.to}T23:59:59`)
+      .neq("status", "cancelled")
       .order("created_at", { ascending: false });
     if (error) throw new Error("Lecture impossible");
     return rows;

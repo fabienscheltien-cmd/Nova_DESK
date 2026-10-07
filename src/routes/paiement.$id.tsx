@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { getMyBooking, payMyBooking } from "@/lib/data.functions";
+import { getAccessToken } from "@/lib/access";
 import { formatPrice } from "@/lib/format";
 
 export const Route = createFileRoute("/paiement/$id")({
@@ -49,13 +50,9 @@ function PaymentPage() {
   const booking = useQuery({
     queryKey: ["booking", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*, booking_items(*)")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data;
+      const token = getAccessToken();
+      if (!token) return null;
+      return getMyBooking({ data: { token, id } }).catch(() => null);
     },
   });
 
@@ -64,16 +61,10 @@ function PaymentPage() {
   const pay = async () => {
     if (!b) return;
     setBusy(true);
-    const { error } = await supabase
-      .from("bookings")
-      .update({
-        status: b.status === "delivered" ? "termine" : b.status,
-        paid_at: new Date().toISOString(),
-        payment_method: "en_ligne",
-      })
-      .eq("id", id);
+    const token = getAccessToken();
+    const ok = token ? await payMyBooking({ data: { token, id } }).catch(() => null) : null;
     setBusy(false);
-    if (error) {
+    if (!ok) {
       toast.error("Le paiement n'a pas pu être enregistré.");
       return;
     }
