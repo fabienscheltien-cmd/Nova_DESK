@@ -26,34 +26,63 @@ export const getActiveDomains = createServerFn({ method: "GET" }).handler(async 
   return data;
 });
 
+async function siteContext(sb: Awaited<ReturnType<typeof db>>, email: string | null | undefined) {
+  const domain = (email ?? "").split("@")[1]?.toLowerCase() ?? "";
+  const { data: doms } = await sb.from("allowed_domains").select("id, domain, site_id").eq("active", true);
+  const dom = doms?.find((d) => cleanDomain(d.domain) === domain) ?? null;
+  let site: { id: string; name: string } | null = null;
+  if (dom?.site_id) {
+    const { data: s } = await sb.from("sites").select("id, name, active").eq("id", dom.site_id).maybeSingle();
+    if (s?.active) site = { id: s.id, name: s.name };
+  }
+  const siteServices = site
+    ? ((await sb.from("site_services").select("service_id, active, price_cents").eq("site_id", site.id)).data ?? [])
+    : [];
+  return { dom, site, siteServices };
+}
+
+/** Applies a site's per-service activation and price overrides to the base catalogue. */
+export function applySiteOverrides<T extends { id: string; price_cents: number }>(
+  services: T[],
+  overrides: { service_id: string; active: boolean; price_cents: number | null }[],
+): T[] {
+  const map = new Map(overrides.map((o) => [o.service_id, o]));
+  return services
+    .filter((s) => map.get(s.id)?.active !== false)
+    .map((s) => {
+      const p = map.get(s.id)?.price_cents;
+      return p == null ? s : { ...s, price_cents: p };
+    });
+}
+
 export const getCatalogue = createServerFn({ method: "POST" })
   .inputValidator((d: { email?: string | null }) =>
     z.object({ email: z.string().max(255).nullish() }).parse(d),
   )
   .handler(async ({ data }) => {
     const sb = await db();
-    const domain = (data.email ?? "").split("@")[1]?.toLowerCase() ?? "";
-    const [cats, svcs, doms] = await Promise.all([
+    const [cats, svcs, ctx] = await Promise.all([
       sb.from("service_categories").select("*").order("sort_order"),
       sb.from("services").select("*").eq("active", true).order("sort_order"),
-      sb.from("allowed_domains").select("id, domain").eq("active", true),
+      siteContext(sb, data.email),
     ]);
     if (cats.error || svcs.error) throw new Error("Lecture impossible");
-    const dom = doms.data?.find((d) => cleanDomain(d.domain) === domain);
-    let overrides: { category_id: string; pickup_info: string | null }[] = [];
-    if (dom) {
-      const { data: o } = await sb
-        .from("domain_pickup_schedules")
-        .select("category_id, pickup_info")
-        .eq("domain_id", dom.id);
-      overrides = o ?? [];
-    }
+    const [domSched, siteSched] = await Promise.all([
+      ctx.dom
+        ? sb.from("domain_pickup_schedules").select("category_id, pickup_info").eq("domain_id", ctx.dom.id)
+        : Promise.resolve({ data: [] as { category_id: string; pickup_info: string | null }[] }),
+      ctx.site
+        ? sb.from("site_pickup_schedules").select("category_id, pickup_info").eq("site_id", ctx.site.id)
+        : Promise.resolve({ data: [] as { category_id: string; pickup_info: string | null }[] }),
+    ]);
     const categories = cats.data.map((c) => ({
       ...c,
       pickup_info:
-        overrides.find((o) => o.category_id === c.id)?.pickup_info?.trim() || c.pickup_info,
+        siteSched.data?.find((o) => o.category_id === c.id)?.pickup_info?.trim() ||
+        domSched.data?.find((o) => o.category_id === c.id)?.pickup_info?.trim() ||
+        c.pickup_info,
     }));
-    return { categories, services: svcs.data };
+    return { categories, services: applySiteOverrides(svcs.data, ctx.siteServices), site: ctx.site };
   });
 
 export const requestAccess = createServerFn({ method: "POST" })
@@ -144,7 +173,8 @@ export const createBooking = createServerFn({ method: "POST" })
         "id",
         data.items.map((i) => i.service_id),
       );
-    const byId = new Map((svcs ?? []).map((s) => [s.id, s]));
+    const ctx = await siteContext(sb, email);
+    const byId = new Map(applySiteOverrides(svcs ?? [], ctx.siteServices).map((s) => [s.id, s]));
     if (data.items.some((i) => !byId.has(i.service_id))) throw new Error("Prestation invalide");
     const total = data.items.reduce((s, i) => s + byId.get(i.service_id)!.price_cents * i.quantity, 0);
     const { data: booking, error } = await sb
@@ -155,6 +185,7 @@ export const createBooking = createServerFn({ method: "POST" })
         notes: data.notes || null,
         total_cents: total,
         contact_email: email,
+        site_id: ctx.site?.id ?? null,
       })
       .select("id")
       .single();
@@ -316,7 +347,8 @@ export const adminEditItems = createServerFn({ method: "POST" })
         "id",
         data.items.map((i) => i.service_id),
       );
-    const byId = new Map((svcs ?? []).map((s) => [s.id, s]));
+    const ctx = await siteContext(sb, email);
+    const byId = new Map(applySiteOverrides(svcs ?? [], ctx.siteServices).map((s) => [s.id, s]));
     if (data.items.some((i) => !byId.has(i.service_id))) throw new Error("Prestation invalide");
     const total = data.items.reduce((s, i) => s + byId.get(i.service_id)!.price_cents * i.quantity, 0);
     const { error: e1 } = await sb.from("booking_items").delete().eq("booking_id", data.id);
@@ -574,4 +606,110 @@ export const adminStats = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false });
     if (error) throw new Error("Lecture impossible");
     return rows;
+  });
+
+/* ----------------------------- Sites ----------------------------- */
+
+export const adminSitesData = createServerFn({ method: "GET" }).handler(async () => {
+  const sb = await requireAdmin();
+  const [sites, doms, cats, svcs, ss, sched] = await Promise.all([
+    sb.from("sites").select("*").order("name"),
+    sb.from("allowed_domains").select("id, domain, label, active, site_id").order("domain"),
+    sb.from("service_categories").select("id, name, pickup_info").order("sort_order"),
+    sb.from("services").select("id, name, category_id, price_cents, active").order("sort_order"),
+    sb.from("site_services").select("*"),
+    sb.from("site_pickup_schedules").select("*"),
+  ]);
+  if (sites.error) throw new Error("Lecture impossible");
+  return {
+    sites: sites.data,
+    domains: doms.data ?? [],
+    categories: cats.data ?? [],
+    services: svcs.data ?? [],
+    siteServices: ss.data ?? [],
+    schedules: sched.data ?? [],
+  };
+});
+
+export const adminSaveSite = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: uuid.nullish(),
+        name: z.string().trim().min(2).max(120),
+        address: z.string().trim().max(300).nullish(),
+        reception_email: z.string().trim().toLowerCase().email().max(255).nullish().or(z.literal("")),
+        active: z.boolean(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const sb = await requireAdmin();
+    const row = {
+      name: data.name,
+      address: data.address || null,
+      reception_email: data.reception_email || null,
+      active: data.active,
+    };
+    const { error } = data.id
+      ? await sb.from("sites").update(row).eq("id", data.id)
+      : await sb.from("sites").insert(row);
+    if (error) throw new Error("Enregistrement impossible");
+    return { ok: true };
+  });
+
+export const adminDeleteSite = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ id: uuid }).parse(d))
+  .handler(async ({ data }) => {
+    const sb = await requireAdmin();
+    const { error } = await sb.from("sites").delete().eq("id", data.id);
+    return { ok: !error };
+  });
+
+export const adminSetDomainSite = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ domainId: uuid, siteId: uuid.nullable() }).parse(d))
+  .handler(async ({ data }) => {
+    const sb = await requireAdmin();
+    const { error } = await sb.from("allowed_domains").update({ site_id: data.siteId }).eq("id", data.domainId);
+    return { ok: !error };
+  });
+
+export const adminSetSiteService = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        siteId: uuid,
+        serviceId: uuid,
+        active: z.boolean(),
+        price_cents: z.number().int().min(0).max(1_000_000).nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const sb = await requireAdmin();
+    const { error } = await sb.from("site_services").upsert(
+      { site_id: data.siteId, service_id: data.serviceId, active: data.active, price_cents: data.price_cents },
+      { onConflict: "site_id,service_id" },
+    );
+    if (error) throw new Error("Enregistrement impossible");
+    return { ok: true };
+  });
+
+export const adminSaveSiteSchedule = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({ siteId: uuid, categoryId: uuid, value: z.string().trim().max(160).nullish() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const sb = await requireAdmin();
+    const { error } = await sb.from("site_pickup_schedules").upsert(
+      {
+        site_id: data.siteId,
+        category_id: data.categoryId,
+        pickup_info: data.value || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "site_id,category_id" },
+    );
+    if (error) throw new Error("Enregistrement impossible");
+    return { ok: true };
   });
