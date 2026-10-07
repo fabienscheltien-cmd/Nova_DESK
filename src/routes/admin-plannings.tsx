@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { adminPlanningData, adminSavePlanning } from "@/lib/data.functions";
 
 export const Route = createFileRoute("/admin-plannings")({
   head: () => ({
@@ -57,43 +57,13 @@ function PlanningsPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
 
-  const domains = useQuery({
-    queryKey: ["planning-domains"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("allowed_domains")
-        .select("id, domain, label")
-        .eq("active", true)
-        .order("domain");
-      if (error) throw error;
-      return data;
-    },
+  const planning = useQuery({
+    queryKey: ["admin-plannings", domainId],
+    queryFn: () => adminPlanningData({ data: { domainId: domainId || null } }),
   });
-
-  const categories = useQuery({
-    queryKey: ["admin-plannings"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("service_categories")
-        .select("id, name, slug, description, pickup_info")
-        .order("sort_order");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const schedules = useQuery({
-    queryKey: ["domain-schedules", domainId],
-    enabled: !!domainId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("domain_pickup_schedules")
-        .select("category_id, pickup_info")
-        .eq("domain_id", domainId);
-      if (error) throw error;
-      return data;
-    },
-  });
+  const domains = { data: planning.data?.domains };
+  const categories = { data: planning.data?.categories, isLoading: planning.isLoading };
+  const schedules = { data: planning.data?.schedules };
 
   const current = (catId: string, fallback: string | null) => {
     if (!domainId) return fallback ?? "";
@@ -105,19 +75,15 @@ function PlanningsPage() {
     if (!categories.data) return;
     setDrafts(Object.fromEntries(categories.data.map((c) => [c.id, current(c.id, c.pickup_info)])));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories.data, schedules.data, domainId]);
+  }, [planning.data]);
 
   const save = async (id: string) => {
     setSaving(id);
     const value = (drafts[id] ?? "").trim() || null;
-    const { error } = domainId
-      ? await supabase
-          .from("domain_pickup_schedules")
-          .upsert(
-            { domain_id: domainId, category_id: id, pickup_info: value, updated_at: new Date().toISOString() },
-            { onConflict: "domain_id,category_id" },
-          )
-      : await supabase.from("service_categories").update({ pickup_info: value }).eq("id", id);
+    const ok = await adminSavePlanning({
+      data: { domainId: domainId || null, categoryId: id, value },
+    }).catch(() => null);
+    const error = !ok;
     setSaving(null);
     if (error) {
       toast.error("Enregistrement impossible");
