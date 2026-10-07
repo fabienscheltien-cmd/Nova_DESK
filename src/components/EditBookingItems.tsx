@@ -32,11 +32,18 @@ export function EditBookingItems({
   bookingId,
   items,
   onSaved,
+  reference,
+  contactEmail,
+  previousTotal,
 }: {
   bookingId: string;
-  items: { service_id: string; quantity: number }[];
+  items: { service_id: string; quantity: number; service_name: string; unit_price_cents: number }[];
   onSaved: () => void;
+  reference: string;
+  contactEmail: string | null;
+  previousTotal: number;
 }) {
+  const [recap, setRecap] = useState<null | { subject: string; body: string }>(null);
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Item[]>([]);
   const [agreed, setAgreed] = useState(false);
@@ -98,11 +105,65 @@ export function EditBookingItems({
     setSaving(false);
     if (bErr) { toast.error("Modification impossible."); return; }
     toast.success("Prestations modifiées (accord client).");
+    const fmt = (l: { q: number; n: string; p: number }) => `  - ${l.q} × ${l.n} : ${formatPrice(l.p * l.q)}`;
+    const before = items.map((i) => fmt({ q: i.quantity, n: i.service_name, p: i.unit_price_cents }));
+    const after = valid.map((r) => {
+      const sv = byId.get(r.service_id)!;
+      return fmt({ q: r.quantity, n: sv.name, p: sv.price_cents });
+    });
+    setRecap({
+      subject: `Dépôt ${reference} – modification de vos prestations à valider`,
+      body: [
+        "Bonjour,",
+        "",
+        `Suite à notre échange à l'accueil, les prestations de votre dépôt ${reference} ont été corrigées avec votre accord.`,
+        "",
+        "Avant :",
+        ...before,
+        `  Total : ${formatPrice(previousTotal)}`,
+        "",
+        "Après :",
+        ...after,
+        `  Nouveau montant à valider : ${formatPrice(total)}`,
+        ...(note.trim() ? ["", `Motif : ${note.trim()}`] : []),
+        "",
+        "Merci de nous confirmer ce nouveau montant en répondant à ce message ou directement à l'accueil.",
+        "",
+        "L'équipe NOVA DESK",
+      ].join("\n"),
+    });
     setOpen(false);
     onSaved();
   };
 
   return (
+    <>
+    <Dialog open={!!recap} onOpenChange={(o) => !o && setRecap(null)}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>E-mail récapitulatif envoyé au client</DialogTitle>
+          <DialogDescription>
+            À : {contactEmail ?? "adresse inconnue"} — simulation, aucun e-mail réel n'est envoyé.
+          </DialogDescription>
+        </DialogHeader>
+        {recap && (
+          <div className="space-y-2 rounded-md bg-muted/40 p-3 text-sm">
+            <p className="font-medium">{recap.subject}</p>
+            <pre className="whitespace-pre-wrap font-sans text-muted-foreground">{recap.body}</pre>
+          </div>
+        )}
+        <DialogFooter>
+          {recap && contactEmail && (
+            <Button asChild variant="outline">
+              <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(recap.subject)}&body=${encodeURIComponent(recap.body)}`}>
+                Ouvrir dans ma messagerie
+              </a>
+            </Button>
+          )}
+          <Button onClick={() => setRecap(null)}>Fermer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <Dialog
       open={open}
       onOpenChange={(o) => {
@@ -201,5 +262,6 @@ export function EditBookingItems({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

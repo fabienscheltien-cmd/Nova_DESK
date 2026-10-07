@@ -333,6 +333,9 @@ function BookingsAdmin() {
                 <EditBookingItems
                   bookingId={b.id}
                   items={b.booking_items}
+                  reference={b.reference}
+                  contactEmail={b.contact_email}
+                  previousTotal={b.total_cents}
                   onSaved={() =>
                     void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] })
                   }

@@ -172,6 +172,45 @@ export type Database = {
         }
         Relationships: []
       }
+      domain_pickup_schedules: {
+        Row: {
+          category_id: string
+          domain_id: string
+          id: string
+          pickup_info: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          domain_id: string
+          id?: string
+          pickup_info?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          domain_id?: string
+          id?: string
+          pickup_info?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domain_pickup_schedules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "domain_pickup_schedules_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "allowed_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_verifications: {
         Row: {
           created_at: string

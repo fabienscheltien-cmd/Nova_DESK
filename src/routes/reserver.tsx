@@ -77,15 +77,31 @@ function BookingPage() {
   const [busy, setBusy] = useState(false);
 
   const catalogue = useQuery({
-    queryKey: ["catalogue"],
+    queryKey: ["catalogue", contactEmail],
     queryFn: async () => {
-      const [cats, svcs] = await Promise.all([
+      const domain = (contactEmail ?? "").split("@")[1]?.toLowerCase() ?? "";
+      const [cats, svcs, doms] = await Promise.all([
         supabase.from("service_categories").select("*").order("sort_order"),
         supabase.from("services").select("*").eq("active", true).order("sort_order"),
+        supabase.from("allowed_domains").select("id, domain").eq("active", true),
       ]);
       if (cats.error) throw cats.error;
       if (svcs.error) throw svcs.error;
-      return { categories: cats.data, services: svcs.data };
+      const dom = doms.data?.find((d) => d.domain.replace(/^@/, "").toLowerCase() === domain);
+      let overrides: { category_id: string; pickup_info: string | null }[] = [];
+      if (dom) {
+        const { data } = await supabase
+          .from("domain_pickup_schedules")
+          .select("category_id, pickup_info")
+          .eq("domain_id", dom.id);
+        overrides = data ?? [];
+      }
+      const categories = cats.data.map((c) => ({
+        ...c,
+        pickup_info:
+          overrides.find((o) => o.category_id === c.id)?.pickup_info?.trim() || c.pickup_info,
+      }));
+      return { categories, services: svcs.data };
     },
   });
 
