@@ -21,6 +21,7 @@ export type Database = {
           domain: string
           id: string
           label: string | null
+          site_id: string | null
         }
         Insert: {
           active?: boolean
@@ -28,6 +29,7 @@ export type Database = {
           domain: string
           id?: string
           label?: string | null
+          site_id?: string | null
         }
         Update: {
           active?: boolean
@@ -35,8 +37,17 @@ export type Database = {
           domain?: string
           id?: string
           label?: string | null
+          site_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "allowed_domains_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       booking_items: {
         Row: {
@@ -129,6 +140,7 @@ export type Database = {
           paid_at: string | null
           payment_method: string | null
           reference: string
+          site_id: string | null
           status: Database["public"]["Enums"]["booking_status"]
           total_cents: number
           updated_at: string
@@ -147,6 +159,7 @@ export type Database = {
           paid_at?: string | null
           payment_method?: string | null
           reference?: string
+          site_id?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_cents?: number
           updated_at?: string
@@ -165,12 +178,21 @@ export type Database = {
           paid_at?: string | null
           payment_method?: string | null
           reference?: string
+          site_id?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_cents?: number
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bookings_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       domain_pickup_schedules: {
         Row: {
@@ -338,6 +360,105 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      site_pickup_schedules: {
+        Row: {
+          category_id: string
+          pickup_info: string | null
+          site_id: string
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          pickup_info?: string | null
+          site_id: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          pickup_info?: string | null
+          site_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_pickup_schedules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_pickup_schedules_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_services: {
+        Row: {
+          active: boolean
+          price_cents: number | null
+          service_id: string
+          site_id: string
+        }
+        Insert: {
+          active?: boolean
+          price_cents?: number | null
+          service_id: string
+          site_id: string
+        }
+        Update: {
+          active?: boolean
+          price_cents?: number | null
+          service_id?: string
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_services_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sites: {
+        Row: {
+          active: boolean
+          address: string | null
+          created_at: string
+          id: string
+          name: string
+          reception_email: string | null
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          reception_email?: string | null
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          reception_email?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
