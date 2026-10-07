@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin-plannings")({
@@ -52,8 +53,22 @@ const SUGGESTIONS = [
 
 function PlanningsPage() {
   const queryClient = useQueryClient();
+  const [domainId, setDomainId] = useState<string>("");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
+
+  const domains = useQuery({
+    queryKey: ["planning-domains"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("allowed_domains")
+        .select("id, domain, label")
+        .eq("active", true)
+        .order("domain");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const categories = useQuery({
     queryKey: ["admin-plannings"],
@@ -67,20 +82,42 @@ function PlanningsPage() {
     },
   });
 
+  const schedules = useQuery({
+    queryKey: ["domain-schedules", domainId],
+    enabled: !!domainId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("domain_pickup_schedules")
+        .select("category_id, pickup_info")
+        .eq("domain_id", domainId);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const current = (catId: string, fallback: string | null) => {
+    if (!domainId) return fallback ?? "";
+    const row = schedules.data?.find((r) => r.category_id === catId);
+    return row?.pickup_info ?? "";
+  };
+
   useEffect(() => {
     if (!categories.data) return;
-    setDrafts(
-      Object.fromEntries(categories.data.map((c) => [c.id, c.pickup_info ?? ""])),
-    );
-  }, [categories.data]);
+    setDrafts(Object.fromEntries(categories.data.map((c) => [c.id, current(c.id, c.pickup_info)])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories.data, schedules.data, domainId]);
 
   const save = async (id: string) => {
     setSaving(id);
-    const value = (drafts[id] ?? "").trim();
-    const { error } = await supabase
-      .from("service_categories")
-      .update({ pickup_info: value === "" ? null : value })
-      .eq("id", id);
+    const value = (drafts[id] ?? "").trim() || null;
+    const { error } = domainId
+      ? await supabase
+          .from("domain_pickup_schedules")
+          .upsert(
+            { domain_id: domainId, category_id: id, pickup_info: value, updated_at: new Date().toISOString() },
+            { onConflict: "domain_id,category_id" },
+          )
+      : await supabase.from("service_categories").update({ pickup_info: value }).eq("id", id);
     setSaving(null);
     if (error) {
       toast.error("Enregistrement impossible");
@@ -88,6 +125,7 @@ function PlanningsPage() {
     }
     toast.success("Planning mis à jour");
     void queryClient.invalidateQueries({ queryKey: ["admin-plannings"] });
+    void queryClient.invalidateQueries({ queryKey: ["domain-schedules"] });
     void queryClient.invalidateQueries({ queryKey: ["catalogue"] });
   };
 
@@ -97,7 +135,8 @@ function PlanningsPage() {
         <div>
           <h1 className="text-2xl font-semibold sm:text-3xl">Plannings de collecte</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ces horaires s'affichent dans le catalogue, sous chaque prestation.
+            Chaque accueil renseigne ses horaires. Les collaborateurs rattachés voient ces
+            horaires au moment de réserver.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -107,6 +146,28 @@ function PlanningsPage() {
           <AdminLockButton />
         </div>
       </header>
+
+      <div className="space-y-2">
+        <Label>Accueil / site</Label>
+        <Select value={domainId || "default"} onValueChange={(v) => setDomainId(v === "default" ? "" : v)}>
+          <SelectTrigger className="sm:w-96">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Planning par défaut (tous les accueils)</SelectItem>
+            {domains.data?.map((d) => (
+              <SelectItem key={d.id} value={d.id}>
+                {d.label ? `${d.label} — ` : ""}@{d.domain.replace(/^@/, "")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {domainId && (
+          <p className="text-xs text-muted-foreground">
+            Laissez vide pour utiliser le planning par défaut.
+          </p>
+        )}
+      </div>
 
       {categories.isLoading && <p className="text-sm text-muted-foreground">Chargement…</p>}
 
@@ -125,14 +186,12 @@ function PlanningsPage() {
                     id={`planning-${c.id}`}
                     value={drafts[c.id] ?? ""}
                     maxLength={160}
-                    placeholder="Ex. Collecte tous les jours à 10h"
-                    onChange={(e) =>
-                      setDrafts((d) => ({ ...d, [c.id]: e.target.value }))
-                    }
+                    placeholder={domainId ? c.pickup_info ?? "Ex. Collecte tous les jours à 10h" : "Ex. Collecte tous les jours à 10h"}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
                   />
                   <Button
                     onClick={() => void save(c.id)}
-                    disabled={saving === c.id || (drafts[c.id] ?? "") === (c.pickup_info ?? "")}
+                    disabled={saving === c.id || (drafts[c.id] ?? "") === current(c.id, c.pickup_info)}
                     className="sm:w-40"
                   >
                     <Save className="size-4" />
@@ -157,7 +216,9 @@ function PlanningsPage() {
 
               <p className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm text-accent">
                 <Clock className="size-4" />
-                {(drafts[c.id] ?? "").trim() || "Aucun horaire affiché pour cette prestation"}
+                {(drafts[c.id] ?? "").trim() ||
+                  (domainId && c.pickup_info) ||
+                  "Aucun horaire affiché pour cette prestation"}
               </p>
             </CardContent>
           </Card>
