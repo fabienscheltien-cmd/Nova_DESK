@@ -64,7 +64,6 @@ const domainSchema = z
 
 const emailSchema = z.string().trim().toLowerCase().email("Adresse e-mail invalide").max(255);
 
-const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 90;
 
 function AccessAdminPage() {
   return (
