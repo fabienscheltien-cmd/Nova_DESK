@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { adminCatalogue, adminEditItems } from "@/lib/data.functions";
 import { formatPrice } from "@/lib/format";
 
 type Item = { id?: string; service_id: string; quantity: number };
@@ -53,12 +53,8 @@ export function EditBookingItems({
   const services = useQuery({
     queryKey: ["all-services"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("services")
-        .select("id, name, price_cents, active")
-        .order("sort_order");
-      if (error) throw error;
-      return data;
+      const { services } = await adminCatalogue();
+      return services;
     },
     enabled: open,
   });
@@ -74,34 +70,14 @@ export function EditBookingItems({
     if (!valid.length) { toast.error("Ajoutez au moins une prestation."); return; }
     if (!agreed) { toast.error("Confirmez l'accord du client."); return; }
     setSaving(true);
-    const { error: delErr } = await supabase
-      .from("booking_items")
-      .delete()
-      .eq("booking_id", bookingId);
-    const { error: insErr } = delErr
-      ? { error: delErr }
-      : await supabase.from("booking_items").insert(
-          valid.map((r) => {
-            const s = byId.get(r.service_id)!;
-            return {
-              booking_id: bookingId,
-              service_id: s.id,
-              service_name: s.name,
-              quantity: r.quantity,
-              unit_price_cents: s.price_cents,
-            };
-          }),
-        );
-    const { error: bErr } = insErr
-      ? { error: insErr }
-      : await supabase
-          .from("bookings")
-          .update({
-            total_cents: total,
-            modified_by_reception_at: new Date().toISOString(),
-            modification_note: note.trim() || null,
-          })
-          .eq("id", bookingId);
+    const ok = await adminEditItems({
+      data: {
+        id: bookingId,
+        note: note.trim() || null,
+        items: valid.map((r) => ({ service_id: r.service_id, quantity: r.quantity })),
+      },
+    }).catch(() => null);
+    const bErr = !ok;
     setSaving(false);
     if (bErr) { toast.error("Modification impossible."); return; }
     toast.success("Prestations modifiées (accord client).");

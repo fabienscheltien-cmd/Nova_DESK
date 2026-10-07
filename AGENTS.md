@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- All database access goes through server functions in src/lib/data.functions.ts (admin = session cookie, collaborator = verified e-mail token); tables have no anon/authenticated access. Why: the app has no user accounts, so open table policies would expose every record.

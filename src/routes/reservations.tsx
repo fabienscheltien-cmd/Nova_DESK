@@ -7,7 +7,8 @@ import { DomainGate } from "@/components/DomainGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { cancelMyBooking, listMyBookings } from "@/lib/data.functions";
+import { getAccessToken } from "@/lib/access";
 import { formatPrice, STATUS_LABELS } from "@/lib/format";
 
 export const Route = createFileRoute("/reservations")({
@@ -44,18 +45,16 @@ function MyBookings() {
   const bookings = useQuery({
     queryKey: ["my-bookings"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*, booking_items(*)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const token = getAccessToken();
+      if (!token) return [];
+      return listMyBookings({ data: { token } });
     },
   });
 
   const cancel = async (id: string) => {
-    const { error } = await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id);
-    if (error) {
+    const token = getAccessToken();
+    const ok = token ? await cancelMyBooking({ data: { token, id } }).catch(() => null) : null;
+    if (!ok) {
       toast.error("Annulation impossible.");
       return;
     }

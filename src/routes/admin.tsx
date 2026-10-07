@@ -24,7 +24,20 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  adminAddDomain,
+  adminCatalogue,
+  adminCreateCategory,
+  adminCreateService,
+  adminDeleteDomain,
+  adminDeleteService,
+  adminListBookings,
+  adminListDomains,
+  adminSetDomainActive,
+  adminSetServiceActive,
+  adminSetStatus,
+  adminTogglePayment,
+} from "@/lib/data.functions";
 import { formatLeadTime, formatPrice, STATUS_FLOW, STATUS_LABELS } from "@/lib/format";
 
 export const Route = createFileRoute("/admin")({
@@ -76,14 +89,16 @@ function CategoryForm({ count, onDone }: { count: number; onDone: () => void }) 
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "") || `cat-${Date.now()}`;
-    const { error } = await supabase.from("service_categories").insert({
-      name: n.slice(0, 80),
-      slug,
-      description: description.trim() || null,
-      pickup_info: pickup.trim() || null,
-      sort_order: count + 1,
-    });
-    if (error) {
+    const ok = await adminCreateCategory({
+      data: {
+        name: n.slice(0, 80),
+        slug,
+        description: description.trim() || null,
+        pickup_info: pickup.trim() || null,
+        sort_order: count + 1,
+      },
+    }).catch(() => null);
+    if (!ok) {
       toast.error("Catégorie non créée (nom déjà utilisé ?).");
       return;
     }
@@ -167,12 +182,7 @@ function BookingsAdmin() {
   const bookings = useQuery({
     queryKey: ["admin-bookings"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*, booking_items(*), booking_status_history(*)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      return adminListBookings();
     },
   });
 
@@ -183,21 +193,14 @@ function BookingsAdmin() {
     paidAt: string | null,
   ): Promise<boolean> => {
     // Une demande retirée et payée se clôture automatiquement.
-    const target = status === "delivered" && paidAt ? "termine" : status;
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status: target as never })
-      .eq("id", id);
-    if (error) {
+    void previousStatus;
+    void paidAt;
+    const res = await adminSetStatus({ data: { id, status: status as never } }).catch(() => null);
+    if (!res) {
       toast.error("Mise à jour impossible.");
       return false;
     }
-    const { error: histError } = await supabase.from("booking_status_history").insert({
-      booking_id: id,
-      from_status: previousStatus as never,
-      to_status: target as never,
-    });
-    if (histError) toast.error("Historique non enregistré.");
+    const target = res.target;
     void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
     if (target === "termine" && status === "delivered") {
       toast.success("Dépôt retiré et payé : clôturé automatiquement.");
@@ -212,21 +215,15 @@ function BookingsAdmin() {
     reference: string;
   }) => {
     setBusyId(b.id);
-    const paying = !b.paid_at;
-    const { error } = await supabase
-      .from("bookings")
-      .update({
-        paid_at: paying ? new Date().toISOString() : null,
-        payment_method: paying ? "accueil" : null,
-      })
-      .eq("id", b.id);
-    if (error) {
+    const res = await adminTogglePayment({ data: { id: b.id } }).catch(() => null);
+    if (!res) {
       setBusyId(null);
       toast.error("Paiement non enregistré.");
       return;
     }
-    if (paying && b.status === "delivered") {
-      await setStatus(b.id, "termine", b.status, null);
+    const paying = res.paying;
+    void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+    if (res.closed) {
       toast.success(`Dépôt ${b.reference} payé et clôturé.`);
     } else {
       void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
@@ -386,13 +383,7 @@ function CatalogueAdmin() {
   const data = useQuery({
     queryKey: ["admin-catalogue"],
     queryFn: async () => {
-      const [cats, svcs] = await Promise.all([
-        supabase.from("service_categories").select("*").order("sort_order"),
-        supabase.from("services").select("*").order("sort_order"),
-      ]);
-      if (cats.error) throw cats.error;
-      if (svcs.error) throw svcs.error;
-      return { categories: cats.data, services: svcs.data };
+      return adminCatalogue();
     },
   });
 
@@ -410,10 +401,10 @@ function CatalogueAdmin() {
       toast.error(parsed.error.issues[0]?.message ?? "Champs invalides");
       return;
     }
-    const { error } = await supabase
-      .from("services")
-      .insert({ ...parsed.data, description: parsed.data.description ?? null });
-    if (error) {
+    const ok = await adminCreateService({
+      data: { ...parsed.data, description: parsed.data.description ?? null },
+    }).catch(() => null);
+    if (!ok) {
       toast.error("Ajout impossible.");
       return;
     }
@@ -425,13 +416,13 @@ function CatalogueAdmin() {
   };
 
   const toggle = async (id: string, active: boolean) => {
-    await supabase.from("services").update({ active }).eq("id", id);
+    await adminSetServiceActive({ data: { id, active } });
     void refresh();
   };
 
   const remove = async (id: string) => {
-    const { error } = await supabase.from("services").delete().eq("id", id);
-    if (error) {
+    const res = await adminDeleteService({ data: { id } }).catch(() => null);
+    if (!res?.ok) {
       toast.error("Suppression impossible (prestation déjà réservée). Désactivez-la plutôt.");
       return;
     }
@@ -565,12 +556,7 @@ function DomainsAdmin() {
   const domains = useQuery({
     queryKey: ["admin-domains"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("allowed_domains")
-        .select("*")
-        .order("domain");
-      if (error) throw error;
-      return data;
+      return adminListDomains();
     },
   });
 
@@ -582,10 +568,10 @@ function DomainsAdmin() {
       toast.error(parsed.error.issues[0]?.message ?? "Domaine invalide");
       return;
     }
-    const { error } = await supabase
-      .from("allowed_domains")
-      .insert({ domain: parsed.data, label: label.trim() || null });
-    if (error) {
+    const res = await adminAddDomain({
+      data: { domain: parsed.data, label: label.trim() || null },
+    }).catch(() => null);
+    if (!res?.ok) {
       toast.error("Ce domaine existe déjà ou n'a pas pu être ajouté.");
       return;
     }
@@ -596,12 +582,12 @@ function DomainsAdmin() {
   };
 
   const toggle = async (id: string, active: boolean) => {
-    await supabase.from("allowed_domains").update({ active }).eq("id", id);
+    await adminSetDomainActive({ data: { id, active } });
     void refresh();
   };
 
   const remove = async (id: string) => {
-    await supabase.from("allowed_domains").delete().eq("id", id);
+    await adminDeleteDomain({ data: { id } });
     void refresh();
   };
 

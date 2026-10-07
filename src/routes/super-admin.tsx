@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { adminStats } from "@/lib/data.functions";
 import { formatPrice, STATUS_LABELS } from "@/lib/format";
 import { isSuperAdmin } from "@/lib/super-admin";
 
@@ -64,15 +64,7 @@ function Stats() {
   const q = useQuery({
     queryKey: ["super-admin", from, to],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*, booking_items(*, services(category_id, service_categories(name)))")
-        .gte("created_at", `${from}T00:00:00`)
-        .lte("created_at", `${to}T23:59:59`)
-        .neq("status", "cancelled")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      return adminStats({ data: { from, to } });
     },
   });
 

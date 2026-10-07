@@ -29,7 +29,8 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
+import { createBooking, getCatalogue } from "@/lib/data.functions";
+import { getAccessToken } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { formatLeadTime, formatPrice, SLOTS } from "@/lib/format";
 
@@ -79,29 +80,7 @@ function BookingPage() {
   const catalogue = useQuery({
     queryKey: ["catalogue", contactEmail],
     queryFn: async () => {
-      const domain = (contactEmail ?? "").split("@")[1]?.toLowerCase() ?? "";
-      const [cats, svcs, doms] = await Promise.all([
-        supabase.from("service_categories").select("*").order("sort_order"),
-        supabase.from("services").select("*").eq("active", true).order("sort_order"),
-        supabase.from("allowed_domains").select("id, domain").eq("active", true),
-      ]);
-      if (cats.error) throw cats.error;
-      if (svcs.error) throw svcs.error;
-      const dom = doms.data?.find((d) => d.domain.replace(/^@/, "").toLowerCase() === domain);
-      let overrides: { category_id: string; pickup_info: string | null }[] = [];
-      if (dom) {
-        const { data } = await supabase
-          .from("domain_pickup_schedules")
-          .select("category_id, pickup_info")
-          .eq("domain_id", dom.id);
-        overrides = data ?? [];
-      }
-      const categories = cats.data.map((c) => ({
-        ...c,
-        pickup_info:
-          overrides.find((o) => o.category_id === c.id)?.pickup_info?.trim() || c.pickup_info,
-      }));
-      return { categories, services: svcs.data };
+      return getCatalogue({ data: { email: contactEmail } });
     },
   });
 
@@ -138,37 +117,21 @@ function BookingPage() {
     }
 
     setBusy(true);
-    const { data: booking, error } = await supabase
-      .from("bookings")
-      .insert({
-        dropoff_date: parsed.data.dropoff_date,
-        dropoff_slot: parsed.data.dropoff_slot,
-        notes: parsed.data.notes || null,
-        total_cents: total,
-        contact_email: contactEmail,
-      })
-      .select("id")
-      .single();
-
-    if (error || !booking) {
-      setBusy(false);
-      toast.error("La réservation n'a pas pu être enregistrée.");
-      return;
-    }
-
-    const { error: itemsError } = await supabase.from("booking_items").insert(
-      lines.map((l) => ({
-        booking_id: booking.id,
-        service_id: l.service.id,
-        service_name: l.service.name,
-        quantity: l.qty,
-        unit_price_cents: l.service.price_cents,
-      })),
-    );
+    const token = getAccessToken();
+    const booking = token
+      ? await createBooking({
+          data: {
+            token,
+            dropoff_date: parsed.data.dropoff_date,
+            dropoff_slot: parsed.data.dropoff_slot,
+            notes: parsed.data.notes || null,
+            items: lines.map((l) => ({ service_id: l.service.id, quantity: l.qty })),
+          },
+        }).catch(() => null)
+      : null;
     setBusy(false);
-
-    if (itemsError) {
-      toast.error("Les prestations n'ont pas pu être enregistrées.");
+    if (!booking) {
+      toast.error("La réservation n'a pas pu être enregistrée.");
       return;
     }
 

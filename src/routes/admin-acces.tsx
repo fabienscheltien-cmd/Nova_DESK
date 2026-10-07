@@ -14,7 +14,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  adminAddDomain,
+  adminDeleteDomain,
+  adminInvite,
+  adminListDomains,
+  adminListVerifications,
+  adminRevokeEmail,
+  adminSetDomainActive,
+  adminValidateEmail,
+} from "@/lib/data.functions";
 
 export const Route = createFileRoute("/admin-acces")({
   head: () => ({
@@ -55,7 +64,6 @@ const domainSchema = z
 
 const emailSchema = z.string().trim().toLowerCase().email("Adresse e-mail invalide").max(255);
 
-const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 90;
 
 function AccessAdminPage() {
   return (
@@ -89,9 +97,7 @@ function DomainsSection() {
   const domains = useQuery({
     queryKey: ["admin-domains"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("allowed_domains").select("*").order("domain");
-      if (error) throw error;
-      return data;
+      return adminListDomains();
     },
   });
 
@@ -103,10 +109,10 @@ function DomainsSection() {
       toast.error(parsed.error.issues[0]?.message ?? "Domaine invalide");
       return;
     }
-    const { error } = await supabase
-      .from("allowed_domains")
-      .insert({ domain: parsed.data, label: label.trim() || null });
-    if (error) {
+    const res = await adminAddDomain({
+      data: { domain: parsed.data, label: label.trim() || null },
+    }).catch(() => null);
+    if (!res?.ok) {
       toast.error("Ce domaine existe déjà ou n'a pas pu être ajouté.");
       return;
     }
@@ -117,12 +123,12 @@ function DomainsSection() {
   };
 
   const toggle = async (id: string, active: boolean) => {
-    await supabase.from("allowed_domains").update({ active }).eq("id", id);
+    await adminSetDomainActive({ data: { id, active } });
     void refresh();
   };
 
   const remove = async (id: string) => {
-    await supabase.from("allowed_domains").delete().eq("id", id);
+    await adminDeleteDomain({ data: { id } });
     void refresh();
   };
 
@@ -229,21 +235,14 @@ function VerificationsSection() {
   const verifications = useQuery({
     queryKey: ["admin-verifications"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("email_verifications")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      return adminListVerifications();
     },
   });
 
   const domains = useQuery({
     queryKey: ["admin-domains"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("allowed_domains").select("*").order("domain");
-      if (error) throw error;
-      return data;
+      return adminListDomains();
     },
   });
 
@@ -267,13 +266,9 @@ function VerificationsSection() {
       toast.error(`Le domaine @${domain} n'est pas autorisé.`);
       return;
     }
-    const token = crypto.randomUUID();
-    const { error } = await supabase.from("email_verifications").insert({
-      email,
-      token,
-      expires_at: new Date(Date.now() + THREE_MONTHS_MS).toISOString(),
-    });
-    if (error) {
+    const res = await adminInvite({ data: { email } }).catch(() => null);
+    const token = res?.token ?? "";
+    if (!res) {
       toast.error("Impossible de créer l'invitation.");
       return;
     }
@@ -294,14 +289,8 @@ function VerificationsSection() {
   };
 
   const validateNow = async (id: string) => {
-    const { error } = await supabase
-      .from("email_verifications")
-      .update({
-        verified_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + THREE_MONTHS_MS).toISOString(),
-      })
-      .eq("id", id);
-    if (error) {
+    const res = await adminValidateEmail({ data: { id } }).catch(() => null);
+    if (!res?.ok) {
       toast.error("Validation impossible.");
       return;
     }
@@ -310,11 +299,8 @@ function VerificationsSection() {
   };
 
   const revoke = async (id: string) => {
-    const { error } = await supabase
-      .from("email_verifications")
-      .update({ verified_at: null, expires_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) {
+    const res = await adminRevokeEmail({ data: { id } }).catch(() => null);
+    if (!res?.ok) {
       toast.error("Révocation impossible.");
       return;
     }
