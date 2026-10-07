@@ -8,6 +8,13 @@
       "when": 1791275165413,
       "tag": "0000_booking_modified_by_reception",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791365512467,
+      "tag": "0001_domain_pickup_schedules",
+      "breakpoints": true
     }
   ]
 }
