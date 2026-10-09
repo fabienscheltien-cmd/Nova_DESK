@@ -36,6 +36,7 @@ import {
   adminSetDomainActive,
   adminSetServiceActive,
   adminSetStatus,
+  adminSitesData,
   adminTogglePayment,
 } from "@/lib/data.functions";
 import { formatLeadTime, formatPrice, STATUS_FLOW, STATUS_LABELS } from "@/lib/format";
@@ -151,6 +152,9 @@ function AdminPage() {
             </Button>
           )}
           <Button asChild variant="outline" size="sm">
+            <Link to="/admin-sites">Sites & accueils</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
             <Link to="/admin-plannings">Plannings de collecte</Link>
           </Button>
           <AdminLockButton />
@@ -185,6 +189,12 @@ function BookingsAdmin() {
       return adminListBookings();
     },
   });
+  const [siteFilter, setSiteFilter] = useState("all");
+  const sites = useQuery({ queryKey: ["admin-sites"], queryFn: () => adminSitesData() });
+  const siteName = (id: string | null) => sites.data?.sites.find((s) => s.id === id)?.name;
+  const visible = bookings.data?.filter((b) =>
+    siteFilter === "all" ? true : siteFilter === "none" ? !b.site_id : b.site_id === siteFilter,
+  );
 
   const setStatus = async (
     id: string,
@@ -240,15 +250,33 @@ function BookingsAdmin() {
 
   return (
     <div className="space-y-4">
-      {bookings.data?.length === 0 && (
+      <div className="flex flex-wrap items-center gap-2">
+        <Label>Accueil</Label>
+        <Select value={siteFilter} onValueChange={setSiteFilter}>
+          <SelectTrigger className="sm:w-72">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les sites</SelectItem>
+            {sites.data?.sites.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+            <SelectItem value="none">Sans site</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {visible?.length === 0 && (
         <p className="text-sm text-muted-foreground">Aucune réservation.</p>
       )}
-      {bookings.data?.map((b) => (
+      {visible?.map((b) => (
         <Card key={b.id} className="panel border-border/70">
           <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="flex flex-wrap items-center gap-2 text-base">
                 Dépôt {b.reference}
+                {siteName(b.site_id) && <Badge variant="outline">{siteName(b.site_id)}</Badge>}
                 {b.paid_at ? (
                   b.payment_method === "accueil" ? (
                     <Badge variant="outline">Payé à l'accueil</Badge>
