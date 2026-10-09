@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminAccesRouteImport } from './routes/admin-acces'
 import { Route as AdminPlanningsRouteImport } from './routes/admin-plannings'
+import { Route as AdminSitesRouteImport } from './routes/admin-sites'
 import { Route as ReservationsRouteImport } from './routes/reservations'
 import { Route as ReserverRouteImport } from './routes/reserver'
 import { Route as SuperAdminRouteImport } from './routes/super-admin'
@@ -37,6 +38,11 @@ const AdminAccesRoute = AdminAccesRouteImport.update({
 const AdminPlanningsRoute = AdminPlanningsRouteImport.update({
   id: '/admin-plannings',
   path: '/admin-plannings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSitesRoute = AdminSitesRouteImport.update({
+  id: '/admin-sites',
+  path: '/admin-sites',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReservationsRoute = ReservationsRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/admin-acces': typeof AdminAccesRoute
   '/admin-plannings': typeof AdminPlanningsRoute
+  '/admin-sites': typeof AdminSitesRoute
   '/reservations': typeof ReservationsRoute
   '/reserver': typeof ReserverRoute
   '/super-admin': typeof SuperAdminRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/admin-acces': typeof AdminAccesRoute
   '/admin-plannings': typeof AdminPlanningsRoute
+  '/admin-sites': typeof AdminSitesRoute
   '/reservations': typeof ReservationsRoute
   '/reserver': typeof ReserverRoute
   '/super-admin': typeof SuperAdminRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/admin-acces': typeof AdminAccesRoute
   '/admin-plannings': typeof AdminPlanningsRoute
+  '/admin-sites': typeof AdminSitesRoute
   '/reservations': typeof ReservationsRoute
   '/reserver': typeof ReserverRoute
   '/super-admin': typeof SuperAdminRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin-acces'
     | '/admin-plannings'
+    | '/admin-sites'
     | '/reservations'
     | '/reserver'
     | '/super-admin'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin-acces'
     | '/admin-plannings'
+    | '/admin-sites'
     | '/reservations'
     | '/reserver'
     | '/super-admin'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin-acces'
     | '/admin-plannings'
+    | '/admin-sites'
     | '/reservations'
     | '/reserver'
     | '/super-admin'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AdminAccesRoute: typeof AdminAccesRoute
   AdminPlanningsRoute: typeof AdminPlanningsRoute
+  AdminSitesRoute: typeof AdminSitesRoute
   ReservationsRoute: typeof ReservationsRoute
   ReserverRoute: typeof ReserverRoute
   SuperAdminRoute: typeof SuperAdminRoute
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/admin-plannings'
       fullPath: '/admin-plannings'
       preLoaderRoute: typeof AdminPlanningsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin-sites': {
+      id: '/admin-sites'
+      path: '/admin-sites'
+      fullPath: '/admin-sites'
+      preLoaderRoute: typeof AdminSitesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reservations': {
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AdminAccesRoute: AdminAccesRoute,
   AdminPlanningsRoute: AdminPlanningsRoute,
+  AdminSitesRoute: AdminSitesRoute,
   ReservationsRoute: ReservationsRoute,
   ReserverRoute: ReserverRoute,
   SuperAdminRoute: SuperAdminRoute,
