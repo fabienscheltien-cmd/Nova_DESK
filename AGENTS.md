@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - All database access goes through server functions in src/lib/data.functions.ts (admin = session cookie, collaborator = verified e-mail token); tables have no anon/authenticated access. Why: the app has no user accounts, so open table policies would expose every record.
+- Sites group domains, per-site service activation/price overrides (site_services) and per-site pickup schedules; catalogue and booking prices are resolved server-side via applySiteOverrides from the collaborator's domain. Why: prices must never be trusted from the client and each site negotiates its own offer.
