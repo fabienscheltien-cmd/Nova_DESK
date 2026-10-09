@@ -347,7 +347,12 @@ export const adminEditItems = createServerFn({ method: "POST" })
         "id",
         data.items.map((i) => i.service_id),
       );
-    const ctx = await siteContext(sb, email);
+    const { data: bk } = await sb.from("bookings").select("site_id").eq("id", data.id).maybeSingle();
+    const ctx = {
+      siteServices: bk?.site_id
+        ? ((await sb.from("site_services").select("service_id, active, price_cents").eq("site_id", bk.site_id)).data ?? [])
+        : [],
+    };
     const byId = new Map(applySiteOverrides(svcs ?? [], ctx.siteServices).map((s) => [s.id, s]));
     if (data.items.some((i) => !byId.has(i.service_id))) throw new Error("Prestation invalide");
     const total = data.items.reduce((s, i) => s + byId.get(i.service_id)!.price_cents * i.quantity, 0);
