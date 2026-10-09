@@ -64,7 +64,7 @@ function SitesPage() {
 
   const create = async () => {
     const ok = await adminSaveSite({ data: { name: newName, active: true } }).catch(() => null);
-    if (!ok) return toast.error("Création impossible (nom de 2 caractères minimum)");
+    if (!ok) return void toast.error("Création impossible (nom de 2 caractères minimum)");
     setNewName("");
     toast.success("Site créé");
     refresh();
@@ -137,7 +137,7 @@ function SiteEditor({
 
   const save = async () => {
     const ok = await adminSaveSite({ data: { id: site.id, ...form } }).catch(() => null);
-    if (!ok) return toast.error("Enregistrement impossible (vérifiez l'e-mail)");
+    if (!ok) return void toast.error("Enregistrement impossible (vérifiez l'e-mail)");
     toast.success("Site enregistré");
     onChange();
   };
@@ -249,10 +249,10 @@ function ServicesCard({ site, data, onChange }: { site: { id: string }; data: Da
     if (priceText !== undefined) {
       const t = priceText.trim().replace(",", ".");
       price_cents = t === "" ? null : Math.round(Number(t) * 100);
-      if (price_cents !== null && (Number.isNaN(price_cents) || price_cents < 0)) return toast.error("Prix invalide");
+      if (price_cents !== null && (Number.isNaN(price_cents) || price_cents < 0)) return void toast.error("Prix invalide");
     }
     const ok = await adminSetSiteService({ data: { siteId: site.id, serviceId, active, price_cents } }).catch(() => null);
-    if (!ok) return toast.error("Enregistrement impossible");
+    if (!ok) return void toast.error("Enregistrement impossible");
     toast.success("Prestation mise à jour");
     onChange();
   };
@@ -307,7 +307,7 @@ function SchedulesCard({ site, data, onChange }: { site: { id: string }; data: D
     data.schedules.find((r) => r.site_id === site.id && r.category_id === catId)?.pickup_info ?? "";
   const save = async (catId: string) => {
     const ok = await adminSaveSiteSchedule({ data: { siteId: site.id, categoryId: catId, value: drafts[catId] ?? current(catId) } }).catch(() => null);
-    if (!ok) return toast.error("Enregistrement impossible");
+    if (!ok) return void toast.error("Enregistrement impossible");
     toast.success("Planning mis à jour");
     onChange();
   };

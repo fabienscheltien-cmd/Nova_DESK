@@ -16,6 +16,6 @@ describe("prix et prestations par site", () => {
     expect(r.map((s) => s.id)).toEqual(["a"]);
   });
   it("garde le prix catalogue sans réglage du site", () => {
-    expect(applySiteOverrides(base, [])[1].price_cents).toBe(800);
+    expect(applySiteOverrides(base, [])[1]?.price_cents).toBe(800);
   });
 });
