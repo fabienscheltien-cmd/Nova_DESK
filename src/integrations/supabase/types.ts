@@ -284,6 +284,50 @@ export type Database = {
         }
         Relationships: []
       }
+      reception_accounts: {
+        Row: {
+          active: boolean
+          created_at: string
+          email: string
+          id: string
+          password: string
+          reset_expires_at: string | null
+          reset_token: string | null
+          site_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          password: string
+          reset_expires_at?: string | null
+          reset_token?: string | null
+          site_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          password?: string
+          reset_expires_at?: string | null
+          reset_token?: string | null
+          site_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reception_accounts_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_categories: {
         Row: {
           created_at: string
