@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Plus, Save, Trash2 } from "lucide-react";
+import { Building2, Eye, EyeOff, KeyRound, Link2, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/AppHeader";
 import { AdminGate, AdminLockButton } from "@/components/AdminGate";
-import { DomainGate } from "@/components/DomainGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +20,14 @@ import {
   adminSetDomainSite,
   adminSetSiteService,
   adminSitesData,
+  superDeleteReception,
+  superListReceptions,
+  superResetLink,
+  superSaveReception,
+  superSetReceptionActive,
+  superSetReceptionPassword,
 } from "@/lib/data.functions";
+import { passwordProblem } from "@/lib/password";
 import { formatPrice } from "@/lib/format";
 
 export const Route = createFileRoute("/admin-sites")({
@@ -41,11 +47,9 @@ export const Route = createFileRoute("/admin-sites")({
   component: () => (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader />
-      <DomainGate>
         <AdminGate>
           <SitesPage />
         </AdminGate>
-      </DomainGate>
     </div>
   ),
 });
@@ -71,6 +75,22 @@ function SitesPage() {
   };
 
   const site = q.data?.sites.find((s) => s.id === selected);
+
+  if (q.data?.role === "reception") {
+    const own = q.data.sites[0];
+    return (
+      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <h1 className="text-2xl font-semibold">Planning de mon accueil{own ? ` — ${own.name}` : ""}</h1>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm"><Link to="/admin">Retour</Link></Button>
+            <AdminLockButton />
+          </div>
+        </header>
+        {own ? <SchedulesCard site={own} data={q.data} onChange={refresh} /> : <p className="text-sm text-muted-foreground">Aucun site rattaché.</p>}
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-8 px-4 py-8 sm:px-6">
@@ -188,6 +208,7 @@ function SiteEditor({
         </CardContent>
       </Card>
 
+      <ReceptionsCard siteId={site.id} />
       <DomainsCard site={site} data={data} onChange={onChange} />
       <ServicesCard site={site} data={data} onChange={onChange} />
       <SchedulesCard site={site} data={data} onChange={onChange} />
@@ -332,6 +353,106 @@ function SchedulesCard({ site, data, onChange }: { site: { id: string }; data: D
             </Button>
           </div>
         ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReceptionsCard({ siteId }: { siteId: string }) {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["receptions"], queryFn: () => superListReceptions() });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [shown, setShown] = useState<Record<string, boolean>>({});
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [links, setLinks] = useState<Record<string, string>>({});
+  const refresh = () => void qc.invalidateQueries({ queryKey: ["receptions"] });
+  const accounts = (q.data ?? []).filter((a) => a.site_id === siteId);
+  const problem = password ? passwordProblem(password) : null;
+
+  const create = async () => {
+    const ok = await superSaveReception({ data: { siteId, email, password } }).catch(() => null);
+    if (!ok) return void toast.error("Création impossible (e-mail invalide ou déjà utilisé)");
+    setEmail("");
+    setPassword("");
+    toast.success("Compte accueil créé : il peut se connecter immédiatement");
+    refresh();
+  };
+  const setPw = async (id: string) => {
+    const v = drafts[id] ?? "";
+    const p = passwordProblem(v);
+    if (p) return void toast.error(p);
+    const ok = await superSetReceptionPassword({ data: { id, password: v } }).catch(() => null);
+    if (!ok) return void toast.error("Enregistrement impossible");
+    setDrafts((d) => ({ ...d, [id]: "" }));
+    toast.success("Nouveau mot de passe actif");
+    refresh();
+  };
+  const link = async (id: string) => {
+    const r = await superResetLink({ data: { id } }).catch(() => null);
+    if (!r) return void toast.error("Lien impossible");
+    setLinks((l) => ({ ...l, [id]: `${window.location.origin}/reinitialiser/${r.token}` }));
+  };
+
+  return (
+    <Card className="panel border-border/70">
+      <CardHeader>
+        <CardTitle>Comptes accueil</CardTitle>
+        <CardDescription>
+          Chaque e-mail d'accueil se connecte à l'administration avec son mot de passe et ne voit que ce site.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {accounts.map((a) => (
+          <div key={a.id} className="space-y-2 rounded-md border border-border/60 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex-1 text-sm font-medium">{a.email}</span>
+              {!a.active && <Badge variant="secondary">désactivé</Badge>}
+              <div className="flex items-center gap-2">
+                <Switch checked={a.active} onCheckedChange={async (v) => { await superSetReceptionActive({ data: { id: a.id, active: v } }); refresh(); }} />
+                <span className="text-xs">Actif</span>
+              </div>
+              <Button size="sm" variant="outline" aria-label="Supprimer" onClick={async () => {
+                if (!confirm(`Supprimer le compte ${a.email} ?`)) return;
+                await superDeleteReception({ data: { id: a.id } });
+                refresh();
+              }}><Trash2 className="size-4" /></Button>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Mot de passe :</span>
+              <code>{shown[a.id] ? a.password : "••••••••"}</code>
+              <Button size="sm" variant="ghost" aria-label="Afficher le mot de passe" onClick={() => setShown((s) => ({ ...s, [a.id]: !s[a.id] }))}>
+                {shown[a.id] ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </Button>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input className="sm:w-60" placeholder="Nouveau mot de passe" value={drafts[a.id] ?? ""}
+                onChange={(e) => setDrafts((d) => ({ ...d, [a.id]: e.target.value }))} />
+              <Button size="sm" variant="outline" onClick={() => void setPw(a.id)}><KeyRound className="size-4" /> Redéfinir</Button>
+              <Button size="sm" variant="outline" onClick={() => void link(a.id)}><Link2 className="size-4" /> Lien de réinitialisation</Button>
+            </div>
+            {links[a.id] && (
+              <p className="break-all rounded bg-muted p-2 text-xs">
+                Lien valable 48 h (simulation d'e-mail, à transmettre à l'accueil) : <a className="underline" href={links[a.id]}>{links[a.id]}</a>
+              </p>
+            )}
+          </div>
+        ))}
+        {accounts.length === 0 && <p className="text-sm text-muted-foreground">Aucun compte accueil pour ce site.</p>}
+        <div className="grid gap-2 border-t border-border/60 pt-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <div className="space-y-1">
+            <Label>E-mail de l'accueil</Label>
+            <Input type="email" value={email} placeholder="accueil.site@nova-serenity.fr" onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label>Premier mot de passe</Label>
+            <Input value={password} onChange={(e) => setPassword(e.target.value)} />
+          </div>
+          <Button onClick={() => void create()} disabled={!email || !password || !!problem}><Plus className="size-4" /> Créer</Button>
+          <p className="text-xs text-muted-foreground sm:col-span-3">
+            {problem ?? "8 caractères minimum, avec majuscule, minuscule et chiffre. Actif immédiatement."}
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

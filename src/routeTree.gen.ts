@@ -18,6 +18,7 @@ import { Route as ReservationsRouteImport } from './routes/reservations'
 import { Route as ReserverRouteImport } from './routes/reserver'
 import { Route as SuperAdminRouteImport } from './routes/super-admin'
 import { Route as PaiementIdRouteImport } from './routes/paiement.$id'
+import { Route as ReinitialiserTokenRouteImport } from './routes/reinitialiser.$token'
 import { Route as VerifierTokenRouteImport } from './routes/verifier.$token'
 
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +66,11 @@ const PaiementIdRoute = PaiementIdRouteImport.update({
   path: '/paiement/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReinitialiserTokenRoute = ReinitialiserTokenRouteImport.update({
+  id: '/reinitialiser/$token',
+  path: '/reinitialiser/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VerifierTokenRoute = VerifierTokenRouteImport.update({
   id: '/verifier/$token',
   path: '/verifier/$token',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/reserver': typeof ReserverRoute
   '/super-admin': typeof SuperAdminRoute
   '/paiement/$id': typeof PaiementIdRoute
+  '/reinitialiser/$token': typeof ReinitialiserTokenRoute
   '/verifier/$token': typeof VerifierTokenRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/reserver': typeof ReserverRoute
   '/super-admin': typeof SuperAdminRoute
   '/paiement/$id': typeof PaiementIdRoute
+  '/reinitialiser/$token': typeof ReinitialiserTokenRoute
   '/verifier/$token': typeof VerifierTokenRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/reserver': typeof ReserverRoute
   '/super-admin': typeof SuperAdminRoute
   '/paiement/$id': typeof PaiementIdRoute
+  '/reinitialiser/$token': typeof ReinitialiserTokenRoute
   '/verifier/$token': typeof VerifierTokenRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/reserver'
     | '/super-admin'
     | '/paiement/$id'
+    | '/reinitialiser/$token'
     | '/verifier/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/reserver'
     | '/super-admin'
     | '/paiement/$id'
+    | '/reinitialiser/$token'
     | '/verifier/$token'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/reserver'
     | '/super-admin'
     | '/paiement/$id'
+    | '/reinitialiser/$token'
     | '/verifier/$token'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   ReserverRoute: typeof ReserverRoute
   SuperAdminRoute: typeof SuperAdminRoute
   PaiementIdRoute: typeof PaiementIdRoute
+  ReinitialiserTokenRoute: typeof ReinitialiserTokenRoute
   VerifierTokenRoute: typeof VerifierTokenRoute
 }
 
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PaiementIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reinitialiser/$token': {
+      id: '/reinitialiser/$token'
+      path: '/reinitialiser/$token'
+      fullPath: '/reinitialiser/$token'
+      preLoaderRoute: typeof ReinitialiserTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/verifier/$token': {
       id: '/verifier/$token'
       path: '/verifier/$token'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReserverRoute: ReserverRoute,
   SuperAdminRoute: SuperAdminRoute,
   PaiementIdRoute: PaiementIdRoute,
+  ReinitialiserTokenRoute: ReinitialiserTokenRoute,
   VerifierTokenRoute: VerifierTokenRoute,
 }
 export const routeTree = rootRouteImport

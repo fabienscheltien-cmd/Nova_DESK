@@ -6,9 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { AppHeader } from "@/components/AppHeader";
-import { AdminGate, AdminLockButton } from "@/components/AdminGate";
-import { DomainGate, useContactEmail } from "@/components/DomainGate";
-import { isSuperAdmin } from "@/lib/super-admin";
+import { AdminGate, AdminLockButton, useAdminStatus } from "@/components/AdminGate";
 import { EditBookingItems } from "@/components/EditBookingItems";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,11 +60,9 @@ export const Route = createFileRoute("/admin")({
   component: () => (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader />
-      <DomainGate>
         <AdminGate>
           <AdminPage />
         </AdminGate>
-      </DomainGate>
     </div>
   ),
 });
@@ -137,25 +133,31 @@ function CategoryForm({ count, onDone }: { count: number; onDone: () => void }) 
 }
 
 function AdminPage() {
-  const email = useContactEmail();
+  const status = useAdminStatus();
+  const isSuper = status.data?.unlocked === true && status.data.role === "super";
+  const siteName = status.data?.unlocked ? status.data.siteName : null;
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Administration</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Administration</h1>
+          <p className="text-sm text-muted-foreground">
+            {isSuper ? "Super Admin — tous les sites" : `Accueil — ${siteName ?? "site non défini"}`}
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link to="/admin-acces">Accès collaborateurs</Link>
-          </Button>
-          {isSuperAdmin(email) && (
-            <Button asChild size="sm">
-              <Link to="/super-admin">Super Admin</Link>
-            </Button>
+          {isSuper && (
+            <>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/admin-acces">Accès collaborateurs</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link to="/super-admin">Super Admin</Link>
+              </Button>
+            </>
           )}
           <Button asChild variant="outline" size="sm">
-            <Link to="/admin-sites">Sites & accueils</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/admin-plannings">Plannings de collecte</Link>
+            <Link to="/admin-sites">{isSuper ? "Sites & accueils" : "Planning de mon accueil"}</Link>
           </Button>
           <AdminLockButton />
         </div>
@@ -163,17 +165,17 @@ function AdminPage() {
       <Tabs defaultValue="bookings" className="mt-6">
         <TabsList>
           <TabsTrigger value="bookings">Réservations</TabsTrigger>
-          <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
-          <TabsTrigger value="domains">Domaines autorisés</TabsTrigger>
+          {isSuper && <TabsTrigger value="catalogue">Catalogue</TabsTrigger>}
+          {isSuper && <TabsTrigger value="domains">Domaines autorisés</TabsTrigger>}
         </TabsList>
         <TabsContent value="bookings" className="mt-5">
           <BookingsAdmin />
         </TabsContent>
         <TabsContent value="catalogue" className="mt-5">
-          <CatalogueAdmin />
+          {isSuper && <CatalogueAdmin />}
         </TabsContent>
         <TabsContent value="domains" className="mt-5">
-          <DomainsAdmin />
+          {isSuper && <DomainsAdmin />}
         </TabsContent>
       </Tabs>
     </main>

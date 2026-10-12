@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { db, requireAdmin, requireCollaborator } from "./data.server";
+import { db, requireAdmin, requireAdminCtx, requireBookingAccess, requireCollaborator, requireSuper } from "./data.server";
+import { passwordProblem } from "./password";
 
 const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 91;
 const uuid = z.string().uuid();
@@ -274,11 +275,13 @@ export const payMyBooking = createServerFn({ method: "POST" })
 /* ----------------------------- Admin ----------------------------- */
 
 export const adminListBookings = createServerFn({ method: "GET" }).handler(async () => {
-  const sb = await requireAdmin();
-  const { data, error } = await sb
+  const ctx = await requireAdminCtx();
+  let q = ctx.sb
     .from("bookings")
     .select("*, booking_items(*), booking_status_history(*)")
     .order("created_at", { ascending: false });
+  if (ctx.role === "reception") q = q.eq("site_id", ctx.siteId ?? "00000000-0000-0000-0000-000000000000");
+  const { data, error } = await q;
   if (error) throw new Error("Lecture impossible");
   return data;
 });
@@ -288,7 +291,7 @@ export const adminSetStatus = createServerFn({ method: "POST" })
     z.object({ id: uuid, status: z.enum(STATUSES) }).parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireBookingAccess(data.id);
     const { data: b } = await sb.from("bookings").select("status, paid_at").eq("id", data.id).single();
     if (!b) throw new Error("Introuvable");
     const target = data.status === "delivered" && b.paid_at ? "termine" : data.status;
@@ -303,7 +306,7 @@ export const adminSetStatus = createServerFn({ method: "POST" })
 export const adminTogglePayment = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: uuid }).parse(d))
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireBookingAccess(data.id);
     const { data: b } = await sb.from("bookings").select("status, paid_at").eq("id", data.id).single();
     if (!b) throw new Error("Introuvable");
     const paying = !b.paid_at;
@@ -339,7 +342,7 @@ export const adminEditItems = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireBookingAccess(data.id);
     const { data: svcs } = await sb
       .from("services")
       .select("id,name,price_cents")
@@ -406,7 +409,7 @@ export const adminCreateCategory = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const { error } = await sb.from("service_categories").insert({
       ...data,
       description: data.description || null,
@@ -429,7 +432,7 @@ export const adminCreateService = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const { error } = await sb
       .from("services")
       .insert({ ...data, description: data.description || null });
@@ -440,7 +443,7 @@ export const adminCreateService = createServerFn({ method: "POST" })
 export const adminSetServiceActive = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: uuid, active: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     await sb.from("services").update({ active: data.active }).eq("id", data.id);
     return { ok: true };
   });
@@ -448,13 +451,13 @@ export const adminSetServiceActive = createServerFn({ method: "POST" })
 export const adminDeleteService = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: uuid }).parse(d))
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const { error } = await sb.from("services").delete().eq("id", data.id);
     return { ok: !error };
   });
 
 export const adminListDomains = createServerFn({ method: "GET" }).handler(async () => {
-  const sb = await requireAdmin();
+  const sb = await requireSuper();
   const { data, error } = await sb.from("allowed_domains").select("*").order("domain");
   if (error) throw new Error("Lecture impossible");
   return data;
@@ -470,7 +473,7 @@ export const adminAddDomain = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const { error } = await sb
       .from("allowed_domains")
       .insert({ domain: data.domain, label: data.label || null });
@@ -480,7 +483,7 @@ export const adminAddDomain = createServerFn({ method: "POST" })
 export const adminSetDomainActive = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: uuid, active: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     await sb.from("allowed_domains").update({ active: data.active }).eq("id", data.id);
     return { ok: true };
   });
@@ -488,13 +491,13 @@ export const adminSetDomainActive = createServerFn({ method: "POST" })
 export const adminDeleteDomain = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: uuid }).parse(d))
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     await sb.from("allowed_domains").delete().eq("id", data.id);
     return { ok: true };
   });
 
 export const adminListVerifications = createServerFn({ method: "GET" }).handler(async () => {
-  const sb = await requireAdmin();
+  const sb = await requireSuper();
   const { data, error } = await sb
     .from("email_verifications")
     .select("*")
@@ -508,7 +511,7 @@ export const adminInvite = createServerFn({ method: "POST" })
     z.object({ email: z.string().trim().toLowerCase().email().max(255) }).parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const t = crypto.randomUUID().replace(/-/g, "");
     const { error } = await sb.from("email_verifications").insert({
       email: data.email,
@@ -522,7 +525,7 @@ export const adminInvite = createServerFn({ method: "POST" })
 export const adminValidateEmail = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: uuid }).parse(d))
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const { error } = await sb
       .from("email_verifications")
       .update({
@@ -536,7 +539,7 @@ export const adminValidateEmail = createServerFn({ method: "POST" })
 export const adminRevokeEmail = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: uuid }).parse(d))
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const { error } = await sb
       .from("email_verifications")
       .update({ verified_at: null, expires_at: new Date().toISOString() })
@@ -547,7 +550,7 @@ export const adminRevokeEmail = createServerFn({ method: "POST" })
 export const adminPlanningData = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ domainId: uuid.nullish() }).parse(d))
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const [cats, doms] = await Promise.all([
       sb.from("service_categories").select("id, name, slug, description, pickup_info").order("sort_order"),
       sb.from("allowed_domains").select("id, domain, label").eq("active", true).order("domain"),
@@ -574,7 +577,7 @@ export const adminSavePlanning = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const value = data.value || null;
     const { error } = data.domainId
       ? await sb.from("domain_pickup_schedules").upsert(
@@ -601,7 +604,7 @@ export const adminStats = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const { data: rows, error } = await sb
       .from("bookings")
       .select("*, booking_items(*, services(category_id, service_categories(name)))")
@@ -616,7 +619,8 @@ export const adminStats = createServerFn({ method: "POST" })
 /* ----------------------------- Sites ----------------------------- */
 
 export const adminSitesData = createServerFn({ method: "GET" }).handler(async () => {
-  const sb = await requireAdmin();
+  const ctx = await requireAdminCtx();
+  const sb = ctx.sb;
   const [sites, doms, cats, svcs, ss, sched] = await Promise.all([
     sb.from("sites").select("*").order("name"),
     sb.from("allowed_domains").select("id, domain, label, active, site_id").order("domain"),
@@ -627,7 +631,8 @@ export const adminSitesData = createServerFn({ method: "GET" }).handler(async ()
   ]);
   if (sites.error) throw new Error("Lecture impossible");
   return {
-    sites: sites.data,
+    role: ctx.role,
+    sites: ctx.role === "reception" ? sites.data.filter((x) => x.id === ctx.siteId) : sites.data,
     domains: doms.data ?? [],
     categories: cats.data ?? [],
     services: svcs.data ?? [],
@@ -649,7 +654,7 @@ export const adminSaveSite = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const row = {
       name: data.name,
       address: data.address || null,
@@ -666,7 +671,7 @@ export const adminSaveSite = createServerFn({ method: "POST" })
 export const adminDeleteSite = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: uuid }).parse(d))
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const { error } = await sb.from("sites").delete().eq("id", data.id);
     return { ok: !error };
   });
@@ -674,7 +679,7 @@ export const adminDeleteSite = createServerFn({ method: "POST" })
 export const adminSetDomainSite = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ domainId: uuid, siteId: uuid.nullable() }).parse(d))
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const { error } = await sb.from("allowed_domains").update({ site_id: data.siteId }).eq("id", data.domainId);
     return { ok: !error };
   });
@@ -691,7 +696,7 @@ export const adminSetSiteService = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const sb = await requireSuper();
     const { error } = await sb.from("site_services").upsert(
       { site_id: data.siteId, service_id: data.serviceId, active: data.active, price_cents: data.price_cents },
       { onConflict: "site_id,service_id" },
@@ -705,7 +710,9 @@ export const adminSaveSiteSchedule = createServerFn({ method: "POST" })
     z.object({ siteId: uuid, categoryId: uuid, value: z.string().trim().max(160).nullish() }).parse(d),
   )
   .handler(async ({ data }) => {
-    const sb = await requireAdmin();
+    const ctx = await requireAdminCtx();
+    if (ctx.role === "reception" && ctx.siteId !== data.siteId) throw new Error("Hors de votre site");
+    const sb = ctx.sb;
     const { error } = await sb.from("site_pickup_schedules").upsert(
       {
         site_id: data.siteId,
@@ -717,4 +724,77 @@ export const adminSaveSiteSchedule = createServerFn({ method: "POST" })
     );
     if (error) throw new Error("Enregistrement impossible");
     return { ok: true };
+  });
+
+/* ----------------------------- Comptes accueil (Super Admin) ----------------------------- */
+
+const pw = z.string().max(200).refine((v) => passwordProblem(v) === null, {
+  message: "8 caractères, majuscule, minuscule et chiffre",
+});
+
+export const superListReceptions = createServerFn({ method: "GET" }).handler(async () => {
+  const sb = await requireSuper();
+  const { data, error } = await sb
+    .from("reception_accounts")
+    .select("id, site_id, email, password, active, reset_token, reset_expires_at, updated_at")
+    .order("email");
+  if (error) throw new Error("Lecture impossible");
+  return data;
+});
+
+export const superSaveReception = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({ siteId: uuid, email: z.string().trim().toLowerCase().email().max(255), password: pw }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const sb = await requireSuper();
+    const { error } = await sb.from("reception_accounts").insert({
+      site_id: data.siteId,
+      email: data.email,
+      password: data.password,
+    });
+    if (error) throw new Error("Création impossible (adresse déjà utilisée ?)");
+    return { ok: true };
+  });
+
+export const superSetReceptionPassword = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ id: uuid, password: pw }).parse(d))
+  .handler(async ({ data }) => {
+    const sb = await requireSuper();
+    const { error } = await sb
+      .from("reception_accounts")
+      .update({ password: data.password, reset_token: null, reset_expires_at: null, updated_at: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error("Enregistrement impossible");
+    return { ok: true };
+  });
+
+export const superSetReceptionActive = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ id: uuid, active: z.boolean() }).parse(d))
+  .handler(async ({ data }) => {
+    const sb = await requireSuper();
+    const { error } = await sb.from("reception_accounts").update({ active: data.active }).eq("id", data.id);
+    return { ok: !error };
+  });
+
+export const superDeleteReception = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ id: uuid }).parse(d))
+  .handler(async ({ data }) => {
+    const sb = await requireSuper();
+    const { error } = await sb.from("reception_accounts").delete().eq("id", data.id);
+    return { ok: !error };
+  });
+
+/** Generates a 48h single-use reset link (shown on screen: no real e-mail sending). */
+export const superResetLink = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ id: uuid }).parse(d))
+  .handler(async ({ data }) => {
+    const sb = await requireSuper();
+    const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+    const { error } = await sb
+      .from("reception_accounts")
+      .update({ reset_token: token, reset_expires_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error("Lien impossible");
+    return { token };
   });
