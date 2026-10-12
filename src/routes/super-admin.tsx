@@ -4,15 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 
 import { AppHeader } from "@/components/AppHeader";
-import { AdminGate } from "@/components/AdminGate";
-import { DomainGate, useContactEmail } from "@/components/DomainGate";
+import { AdminGate, useAdminStatus } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { adminStats } from "@/lib/data.functions";
 import { formatPrice, STATUS_LABELS } from "@/lib/format";
-import { isSuperAdmin } from "@/lib/super-admin";
 
 export const Route = createFileRoute("/super-admin")({
   head: () => ({
@@ -28,18 +26,16 @@ export const Route = createFileRoute("/super-admin")({
   component: () => (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader />
-      <DomainGate>
         <AdminGate>
           <SuperGuard />
         </AdminGate>
-      </DomainGate>
     </div>
   ),
 });
 
 function SuperGuard() {
-  const email = useContactEmail();
-  if (!isSuperAdmin(email)) {
+  const status = useAdminStatus();
+  if (status.data?.unlocked !== true || status.data.role !== "super") {
     return (
       <main className="mx-auto max-w-xl px-4 py-16 text-center">
         <h1 className="text-xl font-semibold">Accès réservé</h1>
