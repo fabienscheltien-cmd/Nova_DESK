@@ -4,7 +4,7 @@ export type AdminSession = {
   unlocked?: boolean;
   role?: "super" | "reception";
   email?: string;
-  siteId?: string;
+  siteId?: string | undefined;
 };
 
 export function adminSessionConfig() {
