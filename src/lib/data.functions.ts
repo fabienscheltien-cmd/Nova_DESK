@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { db, requireAdmin, requireAdminCtx, requireBookingAccess, requireCollaborator, requireSuper } from "./data.server";
 import { passwordProblem } from "./password";
+import { hashPassword } from "./password-hash";
 
 const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 91;
 const uuid = z.string().uuid();
