@@ -43,6 +43,13 @@
       "when": 1792484812069,
       "tag": "0005_hash_reception_passwords",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792484900955,
+      "tag": "0006_default_legacy_password_column",
+      "breakpoints": true
     }
   ]
 }

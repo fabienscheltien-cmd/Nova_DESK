@@ -47,10 +47,12 @@ export async function verifyPassword(pw: string, stored: string | null | undefin
   if (stored.startsWith("pbkdf2:")) {
     const parts = stored.split(":");
     if (parts.length !== 4) return false;
-    const iterations = Number(parts[1]);
+    const [, it, saltHex, hashHex] = parts;
+    if (!it || !saltHex || !hashHex) return false;
+    const iterations = Number(it);
     if (!Number.isInteger(iterations) || iterations < 1 || iterations > 1_000_000) return false;
-    const candidate = await pbkdf2Hex(pw, fromHex(parts[2]), iterations);
-    return safeEqualHex(candidate, parts[3].toLowerCase());
+    const candidate = await pbkdf2Hex(pw, fromHex(saltHex), iterations);
+    return safeEqualHex(candidate, hashHex.toLowerCase());
   }
   // Empreinte SHA-256 historique (migration depuis le stockage en clair).
   if (!/^[0-9a-f]{64}$/i.test(stored)) return false;
