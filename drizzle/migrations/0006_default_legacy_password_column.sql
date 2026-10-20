@@ -1,0 +1,1 @@
+ALTER TABLE public.reception_accounts ALTER COLUMN password SET DEFAULT '';

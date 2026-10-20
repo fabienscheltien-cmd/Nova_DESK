@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { db, requireAdmin, requireAdminCtx, requireBookingAccess, requireCollaborator, requireSuper } from "./data.server";
 import { passwordProblem } from "./password";
+import { hashPassword } from "./password-hash";
 
 const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 91;
 const uuid = z.string().uuid();
@@ -736,10 +737,11 @@ export const superListReceptions = createServerFn({ method: "GET" }).handler(asy
   const sb = await requireSuper();
   const { data, error } = await sb
     .from("reception_accounts")
-    .select("id, site_id, email, password, active, reset_token, reset_expires_at, updated_at")
+    .select("id, site_id, email, password_hash, active, reset_token, reset_expires_at, updated_at")
     .order("email");
   if (error) throw new Error("Lecture impossible");
-  return data;
+  // Les mots de passe sont hachés : on n'expose que leur présence, jamais leur valeur.
+  return (data ?? []).map(({ password_hash, ...row }) => ({ ...row, password_set: !!password_hash }));
 });
 
 export const superSaveReception = createServerFn({ method: "POST" })
@@ -751,7 +753,7 @@ export const superSaveReception = createServerFn({ method: "POST" })
     const { error } = await sb.from("reception_accounts").insert({
       site_id: data.siteId,
       email: data.email,
-      password: data.password,
+      password_hash: await hashPassword(data.password),
     });
     if (error) throw new Error("Création impossible (adresse déjà utilisée ?)");
     return { ok: true };
@@ -763,7 +765,12 @@ export const superSetReceptionPassword = createServerFn({ method: "POST" })
     const sb = await requireSuper();
     const { error } = await sb
       .from("reception_accounts")
-      .update({ password: data.password, reset_token: null, reset_expires_at: null, updated_at: new Date().toISOString() })
+      .update({
+        password_hash: await hashPassword(data.password),
+        reset_token: null,
+        reset_expires_at: null,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", data.id);
     if (error) throw new Error("Enregistrement impossible");
     return { ok: true };

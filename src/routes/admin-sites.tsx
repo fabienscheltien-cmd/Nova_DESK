@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Eye, EyeOff, KeyRound, Link2, Plus, Save, Trash2 } from "lucide-react";
+import { Building2, KeyRound, Link2, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/AppHeader";
@@ -363,7 +363,6 @@ function ReceptionsCard({ siteId }: { siteId: string }) {
   const q = useQuery({ queryKey: ["receptions"], queryFn: () => superListReceptions() });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [shown, setShown] = useState<Record<string, boolean>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [links, setLinks] = useState<Record<string, string>>({});
   const refresh = () => void qc.invalidateQueries({ queryKey: ["receptions"] });
@@ -420,10 +419,11 @@ function ReceptionsCard({ siteId }: { siteId: string }) {
             </div>
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Mot de passe :</span>
-              <code>{shown[a.id] ? a.password : "••••••••"}</code>
-              <Button size="sm" variant="ghost" aria-label="Afficher le mot de passe" onClick={() => setShown((s) => ({ ...s, [a.id]: !s[a.id] }))}>
-                {shown[a.id] ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </Button>
+              {a.password_set ? (
+                <Badge variant="secondary">défini (stocké haché, non lisible)</Badge>
+              ) : (
+                <Badge variant="destructive">non défini</Badge>
+              )}
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input className="sm:w-60" placeholder="Nouveau mot de passe" value={drafts[a.id] ?? ""}

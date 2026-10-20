@@ -11,3 +11,4 @@
 
 - All database access goes through server functions in src/lib/data.functions.ts (admin = session cookie, collaborator = verified e-mail token); tables have no anon/authenticated access. Why: the app has no user accounts, so open table policies would expose every record.
 - Sites group domains, per-site service activation/price overrides (site_services) and per-site pickup schedules; catalogue and booking prices are resolved server-side via applySiteOverrides from the collaborator's domain. Why: prices must never be trusted from the client and each site negotiates its own offer.
+- Reception passwords live only in reception_accounts.password_hash via src/lib/password-hash.ts (PBKDF2; legacy SHA-256 hex accepted for migrated accounts); the plaintext `password` column is deprecated and never read or written. Why: credentials must never be stored or displayed in clear, so the super admin resets passwords instead of viewing them.
