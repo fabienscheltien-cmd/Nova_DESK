@@ -363,7 +363,6 @@ function ReceptionsCard({ siteId }: { siteId: string }) {
   const q = useQuery({ queryKey: ["receptions"], queryFn: () => superListReceptions() });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [shown, setShown] = useState<Record<string, boolean>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [links, setLinks] = useState<Record<string, string>>({});
   const refresh = () => void qc.invalidateQueries({ queryKey: ["receptions"] });
