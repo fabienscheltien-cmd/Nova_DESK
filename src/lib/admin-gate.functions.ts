@@ -49,11 +49,11 @@ export const unlockAdmin = createServerFn({ method: "POST" })
     const sb = await db();
     const { data: acc } = await sb
       .from("reception_accounts")
-      .select("email, password, active, site_id")
+      .select("email, password_hash, active, site_id")
       .eq("email", data.email)
       .maybeSingle();
-    // Always compare to avoid revealing which e-mails exist.
-    const ok = matches(data.password, acc?.password ?? "\u0000invalid") && !!acc?.active;
+    // Toujours vérifier pour ne pas révéler quelles adresses existent.
+    const ok = (await verifyPassword(data.password, acc?.password_hash)) && !!acc?.active;
     if (!ok || !acc) return { ok: false as const };
     await session.update({ unlocked: true, role: "reception", email: acc.email, siteId: acc.site_id });
     return { ok: true as const };
