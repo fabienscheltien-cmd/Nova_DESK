@@ -36,6 +36,13 @@
       "when": 1791820918183,
       "tag": "0004_reception_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792484812069,
+      "tag": "0005_hash_reception_passwords",
+      "breakpoints": true
     }
   ]
 }

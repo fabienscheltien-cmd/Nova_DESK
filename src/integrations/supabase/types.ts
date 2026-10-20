@@ -291,6 +291,7 @@ export type Database = {
           email: string
           id: string
           password: string
+          password_hash: string | null
           reset_expires_at: string | null
           reset_token: string | null
           site_id: string
@@ -302,6 +303,7 @@ export type Database = {
           email: string
           id?: string
           password: string
+          password_hash?: string | null
           reset_expires_at?: string | null
           reset_token?: string | null
           site_id: string
@@ -313,6 +315,7 @@ export type Database = {
           email?: string
           id?: string
           password?: string
+          password_hash?: string | null
           reset_expires_at?: string | null
           reset_token?: string | null
           site_id?: string
