@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db, getAdminSession, requireAdminCtx } from "./data.server";
 import { isSuperAdmin } from "./super-admin";
 import { passwordProblem } from "./password";
+import { hashPassword, verifyPassword } from "./password-hash";
 
 function matches(input: string, expected: string): boolean {
   const a = createHash("sha256").update(input, "utf8").digest();
@@ -72,11 +73,13 @@ export const changeOwnPassword = createServerFn({ method: "POST" })
     if (ctx.role !== "reception") return { ok: false as const, error: "Le mot de passe Direction se change dans les secrets." };
     const problem = passwordProblem(data.next);
     if (problem) return { ok: false as const, error: problem };
-    const { data: acc } = await ctx.sb.from("reception_accounts").select("password").eq("email", ctx.email).single();
-    if (!acc || !matches(data.current, acc.password)) return { ok: false as const, error: "Mot de passe actuel incorrect." };
+    const { data: acc } = await ctx.sb.from("reception_accounts").select("password_hash").eq("email", ctx.email).single();
+    if (!acc || !(await verifyPassword(data.current, acc.password_hash))) {
+      return { ok: false as const, error: "Mot de passe actuel incorrect." };
+    }
     await ctx.sb
       .from("reception_accounts")
-      .update({ password: data.next, updated_at: new Date().toISOString() })
+      .update({ password_hash: await hashPassword(data.next), updated_at: new Date().toISOString() })
       .eq("email", ctx.email);
     return { ok: true as const };
   });
@@ -112,7 +115,12 @@ export const resetWithToken = createServerFn({ method: "POST" })
     }
     await sb
       .from("reception_accounts")
-      .update({ password: data.next, reset_token: null, reset_expires_at: null, updated_at: new Date().toISOString() })
+      .update({
+        password_hash: await hashPassword(data.next),
+        reset_token: null,
+        reset_expires_at: null,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", acc.id);
     return { ok: true as const };
   });
